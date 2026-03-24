@@ -70,13 +70,13 @@ async function seedDatabase() {
 
     // Criar dados financeiros de exemplo
     const categories = await new Promise((resolve, reject) => {
-      const db = require('sqlite3').Database;
-      const conn = new db(`./data/financeiro.db`);
+      const { getDatabase } = await import('./connection.js');
+      const conn = getDatabase();
       conn.all('SELECT id, name FROM categories WHERE family_id = ?', [familyId], (err, rows) => {
         if (err) reject(err);
         else resolve(rows);
+        conn.close();
       });
-      conn.close();
     });
 
     // Receitas do mês atual
