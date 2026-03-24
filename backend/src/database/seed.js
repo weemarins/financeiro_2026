@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { run } from './connection.js';
+import { run, getDatabase } from './connection.js';
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
 
@@ -70,7 +70,6 @@ async function seedDatabase() {
 
     // Criar dados financeiros de exemplo
     const categories = await new Promise((resolve, reject) => {
-      const { getDatabase } = await import('./connection.js');
       const conn = getDatabase();
       conn.all('SELECT id, name FROM categories WHERE family_id = ?', [familyId], (err, rows) => {
         if (err) reject(err);
