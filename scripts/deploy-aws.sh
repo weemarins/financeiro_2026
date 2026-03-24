@@ -27,6 +27,32 @@ error() {
     echo -e "${RED}✗ $1${NC}"
 }
 
+configure_firewall() {
+    info "Verificando firewall do sistema (firewalld/ufw)..."
+
+    if command -v firewall-cmd &> /dev/null && sudo systemctl is-active --quiet firewalld; then
+        info "Firewalld ativo. Liberando portas 5000/tcp e 5173/tcp..."
+        sudo firewall-cmd --permanent --add-port=5000/tcp
+        sudo firewall-cmd --permanent --add-port=5173/tcp
+        sudo firewall-cmd --reload
+        success "Portas liberadas no firewalld"
+        return
+    fi
+
+    if command -v ufw &> /dev/null; then
+        UFW_STATUS=$(sudo ufw status | head -n 1)
+        if [[ "$UFW_STATUS" == *"Status: active"* ]]; then
+            info "UFW ativo. Liberando portas 5000/tcp e 5173/tcp..."
+            sudo ufw allow 5000/tcp
+            sudo ufw allow 5173/tcp
+            success "Portas liberadas no UFW"
+            return
+        fi
+    fi
+
+    info "Nenhum firewall ativo detectado. Pulando configuração de portas."
+}
+
 # Atualizar sistema
 info "Atualizando sistema operacional..."
 sudo dnf update -y
@@ -73,6 +99,9 @@ if ! command -v git &> /dev/null; then
 else
     success "Git já está instalado: $(git --version)"
 fi
+
+# Configurar firewall local (quando aplicável)
+configure_firewall
 
 # Clonar repositório (ajuste conforme necessário)
 info "Preparando diretório da aplicação..."
