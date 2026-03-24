@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS credit_cards (
   name TEXT NOT NULL,
   card_number TEXT,
   bank TEXT,
-  limit DECIMAL(12, 2) NOT NULL,
+  "limit" DECIMAL(12, 2) NOT NULL,
   closing_day INTEGER,
   due_day INTEGER,
   is_active BOOLEAN DEFAULT 1,

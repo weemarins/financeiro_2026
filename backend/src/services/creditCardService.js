@@ -2,7 +2,7 @@ import { run, get, all } from '../database/connection.js';
 
 export async function createCreditCard(familyId, userId, name, cardNumber, bank, limit, closingDay, dueDay) {
   const result = await run(
-    `INSERT INTO credit_cards (family_id, user_id, name, card_number, bank, limit, closing_day, due_day) 
+    `INSERT INTO credit_cards (family_id, user_id, name, card_number, bank, "limit", closing_day, due_day) 
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     [familyId, userId, name, cardNumber, bank, limit, closingDay, dueDay]
   );

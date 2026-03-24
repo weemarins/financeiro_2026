@@ -62,7 +62,7 @@ async function seedDatabase() {
 
     // Criar cartão de crédito de exemplo
     const card = await run(
-      'INSERT INTO credit_cards (family_id, user_id, name, bank, limit, closing_day, due_day) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO credit_cards (family_id, user_id, name, bank, "limit", closing_day, due_day) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [familyId, user1.id, 'Cartão Principal', 'Banco do Brasil', 5000.00, 10, 20]
     );
 
