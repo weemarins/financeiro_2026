@@ -67,11 +67,6 @@ app.use(errorHandler);
 // Inicializar servidor
 async function startServer() {
   try {
-    // Inicializar banco de dados
-    console.log('Initializing database...');
-    await initializeDatabase();
-    console.log('✓ Database initialized');
-
     // Iniciar servidor
     app.listen(PORT, () => {
       console.log(`\n✅ Server is running at ${API_URL}`);
