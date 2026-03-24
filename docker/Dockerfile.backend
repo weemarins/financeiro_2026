@@ -9,6 +9,9 @@ COPY backend/package*.json ./
 # Instalar dependências
 RUN npm install --production
 
+# Instalar curl para healthcheck
+RUN apk add --no-cache curl
+
 # Copiar código
 COPY backend ./
 
