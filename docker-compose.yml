@@ -31,9 +31,7 @@ services:
       dockerfile: docker/Dockerfile.frontend
     container_name: financeiro-frontend
     ports:
-      - "${FRONTEND_PORT:-5173}:5173"
-    environment:
-      - VITE_API_URL=http://backend:5000
+      - "80:80"
     depends_on:
       backend:
         condition: service_healthy

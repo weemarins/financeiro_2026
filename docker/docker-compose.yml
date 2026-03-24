@@ -13,7 +13,7 @@ services:
       - PORT=5000
       - DATABASE_PATH=/app/data/financeiro.db
       - JWT_SECRET=${JWT_SECRET}
-      - CORS_ORIGIN=http://localhost:5173,http://127.0.0.1:5173
+      - CORS_ORIGIN=${CORS_ORIGIN:-*}
     volumes:
       - financeiro-data:/app/data
     networks:
@@ -31,9 +31,7 @@ services:
       dockerfile: docker/Dockerfile.frontend
     container_name: financeiro-frontend
     ports:
-      - "${FRONTEND_PORT:-5173}:5173"
-    environment:
-      - VITE_API_URL=http://localhost:${BACKEND_PORT:-5000}
+      - "80:80"
     depends_on:
       backend:
         condition: service_healthy
