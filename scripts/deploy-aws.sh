@@ -45,6 +45,9 @@ configure_firewall() {
             info "UFW ativo. Liberando portas 5000/tcp e 80/tcp..."
             sudo ufw allow 5000/tcp
             sudo ufw allow 80/tcp
+            info "UFW ativo. Liberando portas 5000/tcp e 5173/tcp..."
+            sudo ufw allow 5000/tcp
+            sudo ufw allow 5173/tcp
             success "Portas liberadas no UFW"
             return
         fi
