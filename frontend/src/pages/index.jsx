@@ -1,5 +1,8 @@
 import React from 'react';
 import { MainLayout } from '../components/Layout.jsx';
+import { DashboardPage as Dashboard } from './DashboardPage.jsx';
+
+export { Dashboard as DashboardPage };
 
 export function TransactionsPage() {
   return (
