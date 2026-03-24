@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Script para deploy na AWS EC2 (Ubuntu)
+# Script para deploy na AWS EC2 (Amazon Linux 2023)
 
 set -e
 
 echo "======================================"
-echo "🚀 Deploy na AWS EC2 (Ubuntu)"
+echo "🚀 Deploy na AWS EC2 (Amazon Linux 2023)"
 echo "======================================"
 echo ""
 
@@ -29,15 +29,13 @@ error() {
 
 # Atualizar sistema
 info "Atualizando sistema operacional..."
-sudo apt-get update
-sudo apt-get upgrade -y
+sudo dnf update -y
 success "Sistema atualizado"
 
 # Instalar Node.js
 info "Instalando Node.js..."
 if ! command -v node &> /dev/null; then
-    curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-    sudo apt-get install -y nodejs
+    sudo dnf install -y nodejs
     success "Node.js instalado"
 else
     success "Node.js já está instalado: $(node -v)"
@@ -71,7 +69,7 @@ fi
 # Instalar Git (se necessário)
 info "Verificando Git..."
 if ! command -v git &> /dev/null; then
-    sudo apt-get install -y git
+    sudo dnf install -y git
     success "Git instalado"
 else
     success "Git já está instalado: $(git --version)"

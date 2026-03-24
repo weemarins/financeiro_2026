@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 💰 Sistema de Gerenciamento Financeiro Familiar
 
 Um sistema completo de gestão financeira para famílias, desenvolvido com Node.js, Express, React e Vite. Inclui funcionalidades avançadas como gestão de cartões de crédito, investimentos, metas financeiras e muito mais.
@@ -369,3 +370,6 @@ Para dúvidas ou problemas, abra uma issue no repositório.
 ---
 
 **Desenvolvido com ❤️ para famílias que querem controlar suas finanças.**
+=======
+# financeiro_2026
+>>>>>>> 273a2651af29f1d843b0bb57b0a737d32fca9f9e
