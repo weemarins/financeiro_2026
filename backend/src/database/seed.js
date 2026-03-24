@@ -10,10 +10,31 @@ async function seedDatabase() {
   try {
     console.log('Starting database seeding...');
 
+    const familyName = 'Família Silva';
+
+    // Garantir seed idempotente: limpa dados de execuções anteriores
+    const cleanupTables = [
+      'card_transactions',
+      'incomes',
+      'expenses',
+      'investment_contributions',
+      'investments',
+      'goals',
+      'emergency_fund',
+      'credit_cards',
+      'categories',
+      'users',
+      'families'
+    ];
+
+    for (const table of cleanupTables) {
+      await run(`DELETE FROM ${table}`);
+    }
+
     // Criar família de exemplo
     const family = await run(
       'INSERT INTO families (name, description) VALUES (?, ?)',
-      ['Família Silva', 'Família de exemplo para testes']
+      [familyName, 'Família de exemplo para testes']
     );
 
     const familyId = family.id;
