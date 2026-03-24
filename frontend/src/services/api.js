@@ -5,12 +5,7 @@ const resolveApiBaseUrl = () => {
     return import.meta.env.VITE_API_URL;
   }
 
-  if (typeof window !== 'undefined') {
-    const { protocol, hostname } = window.location;
-    return `${protocol}//${hostname}:5000/api`;
-  }
-
-  return 'http://localhost:5000/api';
+  return '/api';
 };
 
 const API_BASE_URL = resolveApiBaseUrl();
