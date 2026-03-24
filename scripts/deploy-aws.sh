@@ -44,13 +44,12 @@ fi
 # Instalar Docker
 info "Instalando Docker..."
 if ! command -v docker &> /dev/null; then
-    curl -fsSL https://get.docker.com -o get-docker.sh
-    sudo sh get-docker.sh
-    rm get-docker.sh
+    sudo dnf install -y docker
+    sudo systemctl start docker
+    sudo systemctl enable docker
     
     # Adicionar usuário ao grupo docker
     sudo usermod -aG docker $USER
-    newgrp docker
     success "Docker instalado"
 else
     success "Docker já está instalado: $(docker --version)"
