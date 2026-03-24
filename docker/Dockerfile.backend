@@ -1,0 +1,22 @@
+# Backend Dockerfile
+FROM node:18-alpine
+
+WORKDIR /app/backend
+
+# Copiar arquivos de dependência
+COPY backend/package*.json ./
+
+# Instalar dependências
+RUN npm install --production
+
+# Copiar código
+COPY backend ./
+
+# Criar diretório de dados
+RUN mkdir -p /app/data
+
+# Expor porta
+EXPOSE 5000
+
+# Iniciar servidor com banco de dados
+CMD ["sh", "-c", "npm run db:init && npm run db:seed && npm start"]
