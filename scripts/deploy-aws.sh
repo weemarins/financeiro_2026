@@ -31,9 +31,9 @@ configure_firewall() {
     info "Verificando firewall do sistema (firewalld/ufw)..."
 
     if command -v firewall-cmd &> /dev/null && sudo systemctl is-active --quiet firewalld; then
-        info "Firewalld ativo. Liberando portas 5000/tcp e 5173/tcp..."
+        info "Firewalld ativo. Liberando portas 5000/tcp e 80/tcp..."
         sudo firewall-cmd --permanent --add-port=5000/tcp
-        sudo firewall-cmd --permanent --add-port=5173/tcp
+        sudo firewall-cmd --permanent --add-port=80/tcp
         sudo firewall-cmd --reload
         success "Portas liberadas no firewalld"
         return
@@ -42,9 +42,9 @@ configure_firewall() {
     if command -v ufw &> /dev/null; then
         UFW_STATUS=$(sudo ufw status | head -n 1)
         if [[ "$UFW_STATUS" == *"Status: active"* ]]; then
-            info "UFW ativo. Liberando portas 5000/tcp e 5173/tcp..."
+            info "UFW ativo. Liberando portas 5000/tcp e 80/tcp..."
             sudo ufw allow 5000/tcp
-            sudo ufw allow 5173/tcp
+            sudo ufw allow 80/tcp
             success "Portas liberadas no UFW"
             return
         fi
@@ -134,6 +134,6 @@ echo "4. Verifique se está rodando:"
 echo "   curl http://localhost:5000/health"
 echo ""
 echo "5. Acesse a aplicação:"
-echo "   Frontend: http://$(hostname -I | awk '{print $1}'):5173"
+echo "   Frontend: http://$(hostname -I | awk '{print $1}')"
 echo "   Backend: http://$(hostname -I | awk '{print $1}'):5000"
 echo ""
