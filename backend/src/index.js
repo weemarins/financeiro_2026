@@ -37,6 +37,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Rate limiting
 app.use('/api/auth/login', loginLimiter);
+app.use('/api/auth/register', loginLimiter);
 app.use('/api/', apiLimiter);
 
 // Rotas públicas
