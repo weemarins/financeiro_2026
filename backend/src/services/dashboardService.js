@@ -41,7 +41,17 @@ export async function getDashboardData(familyId, startDate, endDate) {
 
   // Cartões de crédito
   const creditCards = await all(
-    'SELECT id, name, limit, (SELECT SUM(amount) FROM card_transactions WHERE credit_card_id = id) as current_usage FROM credit_cards WHERE family_id = ? AND is_active = 1',
+    `SELECT
+      cc.id,
+      cc.name,
+      cc."limit" as "limit",
+      (
+        SELECT SUM(ct.amount)
+        FROM card_transactions ct
+        WHERE ct.credit_card_id = cc.id
+      ) as current_usage
+     FROM credit_cards cc
+     WHERE cc.family_id = ? AND cc.is_active = 1`,
     [familyId]
   );
 
