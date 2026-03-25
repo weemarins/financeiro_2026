@@ -24,6 +24,9 @@ export const authService = {
 
   updateFamilyUser: (id, payload) =>
     api.put(`/auth/family-users/${id}`, payload),
+
+  deleteFamilyUser: (id) =>
+    api.delete(`/auth/family-users/${id}`),
 };
 
 export const dashboardService = {
