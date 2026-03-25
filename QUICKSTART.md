@@ -43,12 +43,16 @@ chmod +x scripts/deploy-aws.sh
 docker-compose up -d
 ```
 
-## 🔑 Credenciais de Teste
+## 🔑 Criação de usuário admin (sem credenciais hardcoded)
 
+```bash
+cd backend
+ADMIN_EMAIL="admin@local.dev" \
+ADMIN_PASSWORD="<senha-forte>" \
+npm run db:create-admin
 ```
-Email: joao@example.com
-Senha: senha123
-```
+
+> O admin é criado/atualizado usando variáveis de ambiente, sem senha fixa no código.
 
 ## 📱 Acessar a Aplicação
 
