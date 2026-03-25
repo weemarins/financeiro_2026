@@ -31,7 +31,8 @@ export async function createGoal(req, res) {
 export async function getGoals(req, res) {
   try {
     const familyId = req.user.familyId;
-    const goals = await goalsService.getFamilyGoals(familyId);
+    const userId = req.user.userId;
+    const goals = await goalsService.getUserGoals(familyId, userId);
     res.json(goals);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -41,7 +42,9 @@ export async function getGoals(req, res) {
 export async function getGoalDetails(req, res) {
   try {
     const { id } = req.params;
-    const goal = await goalsService.getGoalDetails(id);
+    const familyId = req.user.familyId;
+    const userId = req.user.userId;
+    const goal = await goalsService.getGoalDetails(id, familyId, userId);
 
     if (!goal) {
       return res.status(404).json({ error: 'Goal not found' });
@@ -56,13 +59,15 @@ export async function getGoalDetails(req, res) {
 export async function updateGoalProgress(req, res) {
   try {
     const { id } = req.params;
+    const familyId = req.user.familyId;
+    const userId = req.user.userId;
     const { amount } = req.body;
 
     if (amount === undefined) {
       return res.status(400).json({ error: 'Amount is required' });
     }
 
-    const success = await goalsService.updateGoalProgress(id, amount);
+    const success = await goalsService.updateGoalProgress(id, familyId, userId, amount);
     if (!success) {
       return res.status(404).json({ error: 'Goal not found' });
     }
@@ -76,8 +81,10 @@ export async function updateGoalProgress(req, res) {
 export async function deleteGoal(req, res) {
   try {
     const { id } = req.params;
+    const familyId = req.user.familyId;
+    const userId = req.user.userId;
 
-    const success = await goalsService.deleteGoal(id);
+    const success = await goalsService.deleteGoal(id, familyId, userId);
     if (!success) {
       return res.status(404).json({ error: 'Goal not found' });
     }
@@ -165,10 +172,12 @@ export async function updateEmergencyFundTarget(req, res) {
 export async function calculateEmergencyFundSuggestion(req, res) {
   try {
     const familyId = req.user.familyId;
+    const userId = req.user.userId;
     const { monthsOfExpenses } = req.query;
 
     const suggestion = await goalsService.calculateEmergencyFundSuggestion(
       familyId,
+      userId,
       monthsOfExpenses ? parseInt(monthsOfExpenses) : 3
     );
 
