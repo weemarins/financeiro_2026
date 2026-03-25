@@ -51,7 +51,10 @@ export async function getDashboardData(familyId, userId, startDate, endDate) {
         SELECT SUM(ct.amount)
         FROM card_transactions ct
         JOIN credit_cards cc ON cc.id = ct.credit_card_id
-        WHERE cc.family_id = ? AND cc.user_id = ? AND ${invoiceDueDateExpression} BETWEEN ? AND ?
+        WHERE cc.family_id = ?
+          AND cc.user_id = ?
+          AND cc.is_active = 1
+          AND ${invoiceDueDateExpression} BETWEEN ? AND ?
       ), 0) as total`,
     [familyId, userId, startDate, endDate, familyId, userId, startDate, endDate]
   );
@@ -94,7 +97,10 @@ export async function getDashboardData(familyId, userId, startDate, endDate) {
       JOIN credit_cards cc ON cc.id = ct.credit_card_id
       LEFT JOIN expenses e ON e.id = ct.expense_id
       LEFT JOIN categories c ON c.id = e.category_id
-      WHERE cc.family_id = ? AND cc.user_id = ? AND ${invoiceDueDateExpression} BETWEEN ? AND ?
+      WHERE cc.family_id = ?
+        AND cc.user_id = ?
+        AND cc.is_active = 1
+        AND ${invoiceDueDateExpression} BETWEEN ? AND ?
      ) grouped_expenses
      GROUP BY name`,
     [
