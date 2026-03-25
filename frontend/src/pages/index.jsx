@@ -1,6 +1,6 @@
 import React from 'react';
 import { MainLayout } from '../components/Layout.jsx';
-import { creditCardService, transactionService } from '../services/index.js';
+import { creditCardService, investmentService, transactionService } from '../services/index.js';
 import { DashboardPage as Dashboard } from './DashboardPage.jsx';
 
 export { Dashboard as DashboardPage };
@@ -800,6 +800,206 @@ export function CreditCardsPage() {
 }
 
 export function InvestmentsPage() {
+  const [investments, setInvestments] = React.useState([]);
+  const [selectedInvestmentId, setSelectedInvestmentId] = React.useState('');
+  const [selectedInvestment, setSelectedInvestment] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const [saving, setSaving] = React.useState(false);
+  const [error, setError] = React.useState('');
+  const [success, setSuccess] = React.useState('');
+  const [formData, setFormData] = React.useState({
+    name: '',
+    type: 'stocks',
+    initialAmount: '',
+    description: '',
+  });
+  const [contributionData, setContributionData] = React.useState({
+    amount: '',
+    date: new Date().toISOString().slice(0, 10),
+  });
+  const [currentValue, setCurrentValue] = React.useState('');
+
+  const currencyFormatter = new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  });
+
+  const resetMessages = () => {
+    setError('');
+    setSuccess('');
+  };
+
+  const loadInvestments = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await investmentService.getInvestments();
+      const list = response.data || [];
+      setInvestments(list);
+
+      if (!list.length) {
+        setSelectedInvestmentId('');
+        setSelectedInvestment(null);
+        return;
+      }
+
+      const hasCurrentSelection = list.some((investment) => investment.id === Number(selectedInvestmentId));
+      const nextSelectedId = hasCurrentSelection ? Number(selectedInvestmentId) : list[0].id;
+      setSelectedInvestmentId(String(nextSelectedId));
+    } catch (err) {
+      console.error(err);
+      setError('Não foi possível carregar os investimentos.');
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedInvestmentId]);
+
+  const loadInvestmentDetails = React.useCallback(async (id) => {
+    if (!id) {
+      setSelectedInvestment(null);
+      return;
+    }
+
+    try {
+      const response = await investmentService.getInvestmentDetails(id);
+      const details = response.data;
+      setSelectedInvestment(details);
+      setCurrentValue(details.current_amount ?? '');
+    } catch (err) {
+      console.error(err);
+      setError('Não foi possível carregar os detalhes do investimento.');
+    }
+  }, []);
+
+  React.useEffect(() => {
+    loadInvestments();
+  }, [loadInvestments]);
+
+  React.useEffect(() => {
+    if (selectedInvestmentId) {
+      loadInvestmentDetails(selectedInvestmentId);
+    } else {
+      setSelectedInvestment(null);
+    }
+  }, [selectedInvestmentId, loadInvestmentDetails]);
+
+  const handleCreateInvestment = async (event) => {
+    event.preventDefault();
+    resetMessages();
+
+    const payload = {
+      name: formData.name.trim(),
+      type: formData.type,
+      initialAmount: Number(formData.initialAmount),
+      description: formData.description.trim(),
+    };
+
+    if (!payload.name || !payload.type || !payload.initialAmount) {
+      setError('Preencha nome, tipo e valor inicial.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await investmentService.createInvestment(
+        payload.name,
+        payload.type,
+        payload.initialAmount,
+        payload.description || null
+      );
+      setSuccess('Investimento criado com sucesso.');
+      setFormData({
+        name: '',
+        type: 'stocks',
+        initialAmount: '',
+        description: '',
+      });
+      await loadInvestments();
+    } catch (err) {
+      console.error(err);
+      setError('Erro ao criar investimento.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddContribution = async (event) => {
+    event.preventDefault();
+    resetMessages();
+
+    if (!selectedInvestmentId) {
+      setError('Selecione um investimento.');
+      return;
+    }
+
+    const amount = Number(contributionData.amount);
+    if (!amount || !contributionData.date) {
+      setError('Informe valor e data do aporte.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await investmentService.addContribution(selectedInvestmentId, amount, contributionData.date);
+      setSuccess('Aporte adicionado com sucesso.');
+      setContributionData((prev) => ({ ...prev, amount: '' }));
+      await loadInvestments();
+      await loadInvestmentDetails(selectedInvestmentId);
+    } catch (err) {
+      console.error(err);
+      setError('Erro ao adicionar aporte.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUpdateValue = async (event) => {
+    event.preventDefault();
+    resetMessages();
+
+    if (!selectedInvestmentId) {
+      setError('Selecione um investimento.');
+      return;
+    }
+
+    const newValue = Number(currentValue);
+    if (Number.isNaN(newValue) || newValue < 0) {
+      setError('Informe um valor atual válido.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await investmentService.updateInvestmentValue(selectedInvestmentId, newValue);
+      setSuccess('Valor atualizado com sucesso.');
+      await loadInvestments();
+      await loadInvestmentDetails(selectedInvestmentId);
+    } catch (err) {
+      console.error(err);
+      setError('Erro ao atualizar valor.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteInvestment = async () => {
+    resetMessages();
+    if (!selectedInvestmentId) return;
+
+    try {
+      setSaving(true);
+      await investmentService.deleteInvestment(selectedInvestmentId);
+      setSuccess('Investimento removido com sucesso.');
+      await loadInvestments();
+    } catch (err) {
+      console.error(err);
+      setError('Erro ao remover investimento.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const totalInvested = investments.reduce((acc, investment) => acc + Number(investment.current_amount || 0), 0);
+
   return (
     <MainLayout>
       <div className="space-y-6">
@@ -808,11 +1008,221 @@ export function InvestmentsPage() {
           <p className="text-gray-600 mt-1">Acompanhe seus investimentos</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="text-center py-12">
-            <p className="text-gray-500">
-              Funcionalidade de investimentos em desenvolvimento...
-            </p>
+        {(error || success) && (
+          <div className={`rounded-lg px-4 py-3 ${error ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+            {error || success}
+          </div>
+        )}
+
+        <div className="grid md:grid-cols-3 gap-6">
+          <div className="bg-white rounded-lg shadow p-6 md:col-span-2">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">Resumo</h2>
+            {loading ? (
+              <p className="text-gray-500">Carregando investimentos...</p>
+            ) : !investments.length ? (
+              <p className="text-gray-500">Nenhum investimento cadastrado.</p>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-gray-600">
+                  Total investido: <span className="font-bold text-gray-900">{currencyFormatter.format(totalInvested)}</span>
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="py-2 text-sm text-gray-500">Nome</th>
+                        <th className="py-2 text-sm text-gray-500">Tipo</th>
+                        <th className="py-2 text-sm text-gray-500">Valor atual</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {investments.map((investment) => (
+                        <tr
+                          key={investment.id}
+                          onClick={() => setSelectedInvestmentId(String(investment.id))}
+                          className={`border-b last:border-b-0 cursor-pointer ${
+                            String(investment.id) === selectedInvestmentId ? 'bg-blue-50' : ''
+                          }`}
+                        >
+                          <td className="py-3">{investment.name}</td>
+                          <td className="py-3 capitalize">{investment.type}</td>
+                          <td className="py-3 font-semibold">{currencyFormatter.format(Number(investment.current_amount || 0))}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">Novo investimento</h2>
+            <form onSubmit={handleCreateInvestment} className="space-y-3">
+              <label className="text-sm text-gray-700 block">
+                Nome
+                <input
+                  value={formData.name}
+                  onChange={(event) => setFormData((prev) => ({ ...prev, name: event.target.value }))}
+                  className="w-full mt-1 border rounded-lg px-3 py-2"
+                  placeholder="Ex: Tesouro Selic"
+                />
+              </label>
+              <label className="text-sm text-gray-700 block">
+                Tipo
+                <select
+                  value={formData.type}
+                  onChange={(event) => setFormData((prev) => ({ ...prev, type: event.target.value }))}
+                  className="w-full mt-1 border rounded-lg px-3 py-2 bg-white"
+                >
+                  <option value="stocks">Ações</option>
+                  <option value="fixed_income">Renda fixa</option>
+                  <option value="crypto">Cripto</option>
+                  <option value="funds">Fundos</option>
+                  <option value="other">Outros</option>
+                </select>
+              </label>
+              <label className="text-sm text-gray-700 block">
+                Valor inicial
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.initialAmount}
+                  onChange={(event) => setFormData((prev) => ({ ...prev, initialAmount: event.target.value }))}
+                  className="w-full mt-1 border rounded-lg px-3 py-2"
+                />
+              </label>
+              <label className="text-sm text-gray-700 block">
+                Descrição
+                <textarea
+                  value={formData.description}
+                  onChange={(event) => setFormData((prev) => ({ ...prev, description: event.target.value }))}
+                  className="w-full mt-1 border rounded-lg px-3 py-2"
+                  rows="3"
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={saving}
+                className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 disabled:opacity-60"
+              >
+                {saving ? 'Salvando...' : 'Cadastrar investimento'}
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6">
+          <div className="bg-white rounded-lg shadow p-6 space-y-4">
+            <h2 className="text-lg font-bold text-gray-900">Detalhes do investimento</h2>
+            {!selectedInvestment ? (
+              <p className="text-gray-500">Selecione um investimento para ver os detalhes.</p>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-lg bg-gray-50 p-3 border">
+                    <p className="text-sm text-gray-500">Valor inicial</p>
+                    <p className="text-lg font-bold text-gray-900">{currencyFormatter.format(Number(selectedInvestment.initial_amount || 0))}</p>
+                  </div>
+                  <div className="rounded-lg bg-gray-50 p-3 border">
+                    <p className="text-sm text-gray-500">Valor atual</p>
+                    <p className="text-lg font-bold text-blue-700">{currencyFormatter.format(Number(selectedInvestment.current_amount || 0))}</p>
+                  </div>
+                  <div className="rounded-lg bg-gray-50 p-3 border">
+                    <p className="text-sm text-gray-500">Total aportado</p>
+                    <p className="text-lg font-bold text-gray-900">{currencyFormatter.format(Number(selectedInvestment.totalContributed || 0))}</p>
+                  </div>
+                  <div className="rounded-lg bg-gray-50 p-3 border">
+                    <p className="text-sm text-gray-500">Rentabilidade</p>
+                    <p className={`text-lg font-bold ${Number(selectedInvestment.profitLoss || 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                      {currencyFormatter.format(Number(selectedInvestment.profitLoss || 0))} ({Number(selectedInvestment.profitLossPercentage || 0).toFixed(2)}%)
+                    </p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleUpdateValue} className="grid md:grid-cols-3 gap-3">
+                  <label className="text-sm text-gray-700 md:col-span-2">
+                    Atualizar valor atual
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={currentValue}
+                      onChange={(event) => setCurrentValue(event.target.value)}
+                      className="w-full mt-1 border rounded-lg px-3 py-2"
+                    />
+                  </label>
+                  <div className="flex items-end">
+                    <button
+                      type="submit"
+                      disabled={saving}
+                      className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60"
+                    >
+                      Atualizar
+                    </button>
+                  </div>
+                </form>
+
+                <button
+                  type="button"
+                  onClick={handleDeleteInvestment}
+                  disabled={saving}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-60"
+                >
+                  Excluir investimento
+                </button>
+              </>
+            )}
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-6 space-y-4">
+            <h2 className="text-lg font-bold text-gray-900">Registrar aporte</h2>
+            <form onSubmit={handleAddContribution} className="space-y-3">
+              <label className="text-sm text-gray-700 block">
+                Valor do aporte
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={contributionData.amount}
+                  onChange={(event) => setContributionData((prev) => ({ ...prev, amount: event.target.value }))}
+                  className="w-full mt-1 border rounded-lg px-3 py-2"
+                />
+              </label>
+              <label className="text-sm text-gray-700 block">
+                Data
+                <input
+                  type="date"
+                  value={contributionData.date}
+                  onChange={(event) => setContributionData((prev) => ({ ...prev, date: event.target.value }))}
+                  className="w-full mt-1 border rounded-lg px-3 py-2"
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={saving || !selectedInvestmentId}
+                className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 disabled:opacity-60"
+              >
+                Adicionar aporte
+              </button>
+            </form>
+
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-2">Histórico de aportes</h3>
+              {!selectedInvestment?.contributions?.length ? (
+                <p className="text-sm text-gray-500">Sem aportes registrados.</p>
+              ) : (
+                <ul className="space-y-2 max-h-56 overflow-y-auto">
+                  {selectedInvestment.contributions.map((contribution) => (
+                    <li key={contribution.id} className="border rounded-lg px-3 py-2 text-sm flex justify-between">
+                      <span>{contribution.date}</span>
+                      <span className="font-semibold">{currencyFormatter.format(Number(contribution.amount || 0))}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         </div>
       </div>
