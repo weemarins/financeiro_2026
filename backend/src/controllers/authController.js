@@ -59,8 +59,9 @@ export async function updateProfile(req, res) {
   try {
     const { name, email } = req.body;
     const userId = req.user.userId;
+    const familyId = req.user.familyId;
 
-    await authService.updateUser(userId, { name, email });
+    await authService.updateUser(userId, { name, email }, familyId);
 
     res.json({ message: 'Profile updated successfully' });
   } catch (error) {
@@ -91,6 +92,55 @@ export async function getFamilyUsers(req, res) {
     const users = await authService.getFamilyUsers(familyId);
 
     res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+}
+
+export async function createFamilyUser(req, res) {
+  try {
+    const familyId = req.user.familyId;
+    const { name, email, password, role } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const normalizedRole = role === 'admin' ? 'admin' : 'member';
+    const userId = await authService.createFamilyUser(familyId, name, email, password, normalizedRole);
+
+    res.status(201).json({
+      message: 'User created successfully',
+      userId
+    });
+  } catch (error) {
+    if (error.message.includes('Email already registered')) {
+      return res.status(409).json({ error: error.message });
+    }
+    res.status(500).json({ error: error.message });
+  }
+}
+
+export async function updateFamilyUser(req, res) {
+  try {
+    const familyId = req.user.familyId;
+    const userId = Number(req.params.id);
+    const { name, email, role, is_active } = req.body;
+
+    const normalizedRole = role === 'admin' ? 'admin' : 'member';
+    const isActiveValue = typeof is_active === 'boolean' ? is_active : true;
+
+    const updated = await authService.updateUser(
+      userId,
+      { name, email, role: normalizedRole, is_active: isActiveValue },
+      familyId
+    );
+
+    if (!updated) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ message: 'User updated successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

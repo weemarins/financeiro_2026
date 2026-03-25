@@ -18,6 +18,12 @@ export const authService = {
 
   getFamilyUsers: () =>
     api.get('/auth/family-users'),
+
+  createFamilyUser: (name, email, password, role) =>
+    api.post('/auth/family-users', { name, email, password, role }),
+
+  updateFamilyUser: (id, payload) =>
+    api.put(`/auth/family-users/${id}`, payload),
 };
 
 export const dashboardService = {

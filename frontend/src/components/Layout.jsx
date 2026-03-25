@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, User, BarChart3, CreditCard, TrendingUp, Target, Home } from 'lucide-react';
+import { LogOut, BarChart3, CreditCard, TrendingUp, Target, Home, Users } from 'lucide-react';
 
 export function Sidebar() {
   const { user, logout } = useAuth();
@@ -18,6 +18,7 @@ export function Sidebar() {
     { label: 'Cartões', icon: CreditCard, path: '/credit-cards' },
     { label: 'Investimentos', icon: TrendingUp, path: '/investments' },
     { label: 'Metas', icon: Target, path: '/goals' },
+    { label: 'Usuários', icon: Users, path: '/users' },
   ];
 
   return (

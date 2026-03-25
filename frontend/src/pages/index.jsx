@@ -1,6 +1,7 @@
 import React from 'react';
 import { MainLayout } from '../components/Layout.jsx';
-import { creditCardService, goalsService, investmentService, transactionService } from '../services/index.js';
+import { authService, creditCardService, goalsService, investmentService, transactionService } from '../services/index.js';
+import { useAuth } from '../contexts/AuthContext.jsx';
 import { DashboardPage as Dashboard } from './DashboardPage.jsx';
 
 export { Dashboard as DashboardPage };
@@ -1850,6 +1851,192 @@ export function GoalsPage() {
                 </div>
               </div>
             </>
+          )}
+        </div>
+      </div>
+    </MainLayout>
+  );
+}
+
+export function UsersPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+  const [users, setUsers] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [saving, setSaving] = React.useState(false);
+  const [error, setError] = React.useState('');
+  const [success, setSuccess] = React.useState('');
+  const [newUser, setNewUser] = React.useState({ name: '', email: '', password: '', role: 'member' });
+
+  const loadUsers = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const response = await authService.getFamilyUsers();
+      setUsers(response.data || []);
+    } catch (err) {
+      console.error(err);
+      setError('Não foi possível carregar os usuários.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
+
+  const handleCreateUser = async (event) => {
+    event.preventDefault();
+    if (!isAdmin) return;
+
+    try {
+      setSaving(true);
+      setError('');
+      await authService.createFamilyUser(newUser.name, newUser.email, newUser.password, newUser.role);
+      setSuccess('Usuário criado com sucesso.');
+      setNewUser({ name: '', email: '', password: '', role: 'member' });
+      await loadUsers();
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.error || 'Erro ao criar usuário.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUserFieldChange = (id, field, value) => {
+    if (!isAdmin) return;
+    setUsers((prev) => prev.map((item) => (item.id === id ? { ...item, [field]: value } : item)));
+  };
+
+  const handleSaveUser = async (targetUser) => {
+    if (!isAdmin) return;
+
+    try {
+      setSaving(true);
+      setError('');
+      await authService.updateFamilyUser(targetUser.id, {
+        name: targetUser.name,
+        email: targetUser.email,
+        role: targetUser.role,
+        is_active: !!targetUser.is_active,
+      });
+      setSuccess('Usuário atualizado com sucesso.');
+      await loadUsers();
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.error || 'Erro ao atualizar usuário.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <MainLayout>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Usuários</h1>
+          <p className="text-gray-600 mt-1">Gerenciamento de usuários da família</p>
+        </div>
+
+        {(error || success) && (
+          <div className={`rounded-lg px-4 py-3 ${error ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+            {error || success}
+          </div>
+        )}
+
+        {!isAdmin && (
+          <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg px-4 py-3">
+            Apenas o usuário admin pode editar usuários.
+          </div>
+        )}
+
+        {isAdmin && (
+          <form onSubmit={handleCreateUser} className="bg-white rounded-lg shadow p-6 grid md:grid-cols-4 gap-3">
+            <input className="border rounded-lg px-3 py-2" placeholder="Nome" value={newUser.name} onChange={(e) => setNewUser((prev) => ({ ...prev, name: e.target.value }))} required />
+            <input type="email" className="border rounded-lg px-3 py-2" placeholder="Email" value={newUser.email} onChange={(e) => setNewUser((prev) => ({ ...prev, email: e.target.value }))} required />
+            <input type="password" className="border rounded-lg px-3 py-2" placeholder="Senha inicial" value={newUser.password} onChange={(e) => setNewUser((prev) => ({ ...prev, password: e.target.value }))} required />
+            <div className="flex gap-2">
+              <select className="border rounded-lg px-3 py-2 flex-1" value={newUser.role} onChange={(e) => setNewUser((prev) => ({ ...prev, role: e.target.value }))}>
+                <option value="member">Membro</option>
+                <option value="admin">Admin</option>
+              </select>
+              <button type="submit" disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60">Criar</button>
+            </div>
+          </form>
+        )}
+
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          {loading ? (
+            <div className="p-6 text-gray-600">Carregando usuários...</div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="text-left px-4 py-3">Nome</th>
+                  <th className="text-left px-4 py-3">Email</th>
+                  <th className="text-left px-4 py-3">Perfil</th>
+                  <th className="text-left px-4 py-3">Status</th>
+                  <th className="text-right px-4 py-3">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((item) => (
+                  <tr key={item.id} className="border-t">
+                    <td className="px-4 py-3">
+                      <input
+                        className="border rounded-lg px-2 py-1 w-full disabled:bg-gray-100"
+                        value={item.name}
+                        onChange={(e) => handleUserFieldChange(item.id, 'name', e.target.value)}
+                        disabled={!isAdmin}
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <input
+                        className="border rounded-lg px-2 py-1 w-full disabled:bg-gray-100"
+                        value={item.email}
+                        onChange={(e) => handleUserFieldChange(item.id, 'email', e.target.value)}
+                        disabled={!isAdmin}
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <select
+                        className="border rounded-lg px-2 py-1 disabled:bg-gray-100"
+                        value={item.role}
+                        onChange={(e) => handleUserFieldChange(item.id, 'role', e.target.value)}
+                        disabled={!isAdmin}
+                      >
+                        <option value="member">Membro</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </td>
+                    <td className="px-4 py-3">
+                      <label className="inline-flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={!!item.is_active}
+                          onChange={(e) => handleUserFieldChange(item.id, 'is_active', e.target.checked)}
+                          disabled={!isAdmin}
+                        />
+                        <span>{item.is_active ? 'Ativo' : 'Inativo'}</span>
+                      </label>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {isAdmin && (
+                        <button
+                          onClick={() => handleSaveUser(item)}
+                          disabled={saving}
+                          className="px-3 py-1.5 bg-gray-800 text-white rounded-lg hover:bg-gray-900 disabled:opacity-60"
+                        >
+                          Salvar
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
       </div>

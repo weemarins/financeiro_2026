@@ -18,8 +18,8 @@ export async function registerUser(familyId, name, email, password) {
 
   // Criar usuário
   const result = await run(
-    'INSERT INTO users (family_id, name, email, password) VALUES (?, ?, ?, ?)',
-    [familyId, name, email, hashedPassword]
+    'INSERT INTO users (family_id, name, email, password, role) VALUES (?, ?, ?, ?, ?)',
+    [familyId, name, email, hashedPassword, 'member']
   );
 
   return result.id;
@@ -28,7 +28,7 @@ export async function registerUser(familyId, name, email, password) {
 export async function loginUser(email, password) {
   // Buscar usuário
   const user = await get(
-    'SELECT id, family_id, name, email, password FROM users WHERE email = ? AND is_active = 1',
+    'SELECT id, family_id, name, email, role, password FROM users WHERE email = ? AND is_active = 1',
     [email]
   );
 
@@ -43,7 +43,7 @@ export async function loginUser(email, password) {
   }
 
   // Gerar token
-  const token = createAccessToken(user.id, user.family_id);
+  const token = createAccessToken(user.id, user.family_id, user.role);
 
   return {
     token,
@@ -51,7 +51,8 @@ export async function loginUser(email, password) {
       id: user.id,
       family_id: user.family_id,
       name: user.name,
-      email: user.email
+      email: user.email,
+      role: user.role
     }
   };
 }
@@ -74,15 +75,44 @@ export async function getFamilyUsers(familyId) {
   return users;
 }
 
-export async function updateUser(userId, updates) {
-  const { name, email } = updates;
+export async function updateUser(userId, updates, familyId) {
+  const currentUser = await get(
+    'SELECT id, name, email, role, is_active FROM users WHERE id = ? AND family_id = ?',
+    [userId, familyId]
+  );
+
+  if (!currentUser) {
+    throw new Error('User not found');
+  }
+
+  const {
+    name = currentUser.name,
+    email = currentUser.email,
+    role = currentUser.role,
+    is_active = currentUser.is_active
+  } = updates;
 
   const result = await run(
-    'UPDATE users SET name = ?, email = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-    [name || (await get('SELECT name FROM users WHERE id = ?', [userId])).name, email, userId]
+    'UPDATE users SET name = ?, email = ?, role = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND family_id = ?',
+    [name, email, role, is_active ? 1 : 0, userId, familyId]
   );
 
   return result.changes > 0;
+}
+
+export async function createFamilyUser(familyId, name, email, password, role = 'member') {
+  const existingUser = await get('SELECT id FROM users WHERE email = ?', [email]);
+  if (existingUser) {
+    throw new Error('Email already registered');
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const result = await run(
+    'INSERT INTO users (family_id, name, email, password, role) VALUES (?, ?, ?, ?, ?)',
+    [familyId, name, email, hashedPassword, role]
+  );
+
+  return result.id;
 }
 
 export async function changePassword(userId, currentPassword, newPassword) {
