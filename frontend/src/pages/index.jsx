@@ -1866,6 +1866,11 @@ export function UsersPage() {
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState('');
   const [success, setSuccess] = React.useState('');
+  const [passwordForm, setPasswordForm] = React.useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
   const [newUser, setNewUser] = React.useState({ name: '', email: '', password: '', role: 'member' });
 
   const loadUsers = React.useCallback(async () => {
@@ -1952,6 +1957,46 @@ export function UsersPage() {
     }
   };
 
+  const handleChangePassword = async (event) => {
+    event.preventDefault();
+
+    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+      setError('Preencha todos os campos para alterar a senha.');
+      setSuccess('');
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setError('A confirmação da nova senha não confere.');
+      setSuccess('');
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 6) {
+      setError('A nova senha deve ter pelo menos 6 caracteres.');
+      setSuccess('');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError('');
+      await authService.changePassword(passwordForm.currentPassword, passwordForm.newPassword);
+      setSuccess('Senha alterada com sucesso.');
+      setPasswordForm({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      });
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.error || 'Erro ao alterar senha.');
+      setSuccess('');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <MainLayout>
       <div className="space-y-6">
@@ -1965,6 +2010,50 @@ export function UsersPage() {
             {error || success}
           </div>
         )}
+
+        <form onSubmit={handleChangePassword} className="bg-white rounded-lg shadow p-6 space-y-4">
+          <h2 className="text-xl font-semibold text-gray-900">Alterar minha senha</h2>
+          <p className="text-sm text-gray-600">
+            Atualize sua senha de acesso utilizando a senha atual.
+          </p>
+          <div className="grid md:grid-cols-3 gap-3">
+            <input
+              type="password"
+              className="border rounded-lg px-3 py-2"
+              placeholder="Senha atual"
+              value={passwordForm.currentPassword}
+              onChange={(e) => setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
+              required
+            />
+            <input
+              type="password"
+              className="border rounded-lg px-3 py-2"
+              placeholder="Nova senha"
+              value={passwordForm.newPassword}
+              onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
+              minLength={6}
+              required
+            />
+            <input
+              type="password"
+              className="border rounded-lg px-3 py-2"
+              placeholder="Confirmar nova senha"
+              value={passwordForm.confirmPassword}
+              onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+              minLength={6}
+              required
+            />
+          </div>
+          <div>
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60"
+            >
+              Alterar senha
+            </button>
+          </div>
+        </form>
 
         {!isAdmin && (
           <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg px-4 py-3">
