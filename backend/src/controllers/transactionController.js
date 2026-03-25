@@ -32,13 +32,14 @@ export async function createIncome(req, res) {
 export async function getIncomes(req, res) {
   try {
     const familyId = req.user.familyId;
+    const userId = req.user.userId;
     const { startDate, endDate } = req.query;
 
     if (!startDate || !endDate) {
       return res.status(400).json({ error: 'startDate and endDate are required' });
     }
 
-    const incomes = await transactionService.getFamilyIncomes(familyId, startDate, endDate);
+    const incomes = await transactionService.getUserIncomes(familyId, userId, startDate, endDate);
     res.json(incomes);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -48,9 +49,11 @@ export async function getIncomes(req, res) {
 export async function updateIncome(req, res) {
   try {
     const { id } = req.params;
+    const familyId = req.user.familyId;
+    const userId = req.user.userId;
     const updates = req.body;
 
-    const success = await transactionService.updateIncome(id, updates);
+    const success = await transactionService.updateIncome(id, familyId, userId, updates);
     if (!success) {
       return res.status(404).json({ error: 'Income not found' });
     }
@@ -64,8 +67,10 @@ export async function updateIncome(req, res) {
 export async function deleteIncome(req, res) {
   try {
     const { id } = req.params;
+    const familyId = req.user.familyId;
+    const userId = req.user.userId;
 
-    const success = await transactionService.deleteIncome(id);
+    const success = await transactionService.deleteIncome(id, familyId, userId);
     if (!success) {
       return res.status(404).json({ error: 'Income not found' });
     }
@@ -110,13 +115,14 @@ export async function createExpense(req, res) {
 export async function getExpenses(req, res) {
   try {
     const familyId = req.user.familyId;
+    const userId = req.user.userId;
     const { startDate, endDate } = req.query;
 
     if (!startDate || !endDate) {
       return res.status(400).json({ error: 'startDate and endDate are required' });
     }
 
-    const expenses = await transactionService.getFamilyExpenses(familyId, startDate, endDate);
+    const expenses = await transactionService.getUserExpenses(familyId, userId, startDate, endDate);
     res.json(expenses);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -126,9 +132,11 @@ export async function getExpenses(req, res) {
 export async function updateExpense(req, res) {
   try {
     const { id } = req.params;
+    const familyId = req.user.familyId;
+    const userId = req.user.userId;
     const updates = req.body;
 
-    const success = await transactionService.updateExpense(id, updates);
+    const success = await transactionService.updateExpense(id, familyId, userId, updates);
     if (!success) {
       return res.status(404).json({ error: 'Expense not found' });
     }
@@ -142,8 +150,10 @@ export async function updateExpense(req, res) {
 export async function deleteExpense(req, res) {
   try {
     const { id } = req.params;
+    const familyId = req.user.familyId;
+    const userId = req.user.userId;
 
-    const success = await transactionService.deleteExpense(id);
+    const success = await transactionService.deleteExpense(id, familyId, userId);
     if (!success) {
       return res.status(404).json({ error: 'Expense not found' });
     }

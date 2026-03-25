@@ -28,7 +28,8 @@ export async function createInvestment(req, res) {
 export async function getInvestments(req, res) {
   try {
     const familyId = req.user.familyId;
-    const investments = await investmentService.getFamilyInvestments(familyId);
+    const userId = req.user.userId;
+    const investments = await investmentService.getUserInvestments(familyId, userId);
     res.json(investments);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -38,7 +39,9 @@ export async function getInvestments(req, res) {
 export async function getInvestmentDetails(req, res) {
   try {
     const { id } = req.params;
-    const investment = await investmentService.getInvestmentDetails(id);
+    const familyId = req.user.familyId;
+    const userId = req.user.userId;
+    const investment = await investmentService.getInvestmentDetails(id, familyId, userId);
 
     if (!investment) {
       return res.status(404).json({ error: 'Investment not found' });
@@ -53,13 +56,15 @@ export async function getInvestmentDetails(req, res) {
 export async function addContribution(req, res) {
   try {
     const { id } = req.params;
+    const familyId = req.user.familyId;
+    const userId = req.user.userId;
     const { amount, date } = req.body;
 
     if (!amount || !date) {
       return res.status(400).json({ error: 'Amount and date are required' });
     }
 
-    const contributionId = await investmentService.addContribution(id, amount, date);
+    const contributionId = await investmentService.addContribution(id, familyId, userId, amount, date);
 
     res.status(201).json({ id: contributionId, message: 'Contribution added successfully' });
   } catch (error) {
@@ -70,13 +75,15 @@ export async function addContribution(req, res) {
 export async function updateInvestmentValue(req, res) {
   try {
     const { id } = req.params;
+    const familyId = req.user.familyId;
+    const userId = req.user.userId;
     const { newValue } = req.body;
 
     if (newValue === undefined) {
       return res.status(400).json({ error: 'newValue is required' });
     }
 
-    const success = await investmentService.updateInvestmentValue(id, newValue);
+    const success = await investmentService.updateInvestmentValue(id, familyId, userId, newValue);
     if (!success) {
       return res.status(404).json({ error: 'Investment not found' });
     }
@@ -90,8 +97,10 @@ export async function updateInvestmentValue(req, res) {
 export async function deleteInvestment(req, res) {
   try {
     const { id } = req.params;
+    const familyId = req.user.familyId;
+    const userId = req.user.userId;
 
-    const success = await investmentService.deleteInvestment(id);
+    const success = await investmentService.deleteInvestment(id, familyId, userId);
     if (!success) {
       return res.status(404).json({ error: 'Investment not found' });
     }

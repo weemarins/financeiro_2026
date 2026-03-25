@@ -9,21 +9,21 @@ export async function createCreditCard(familyId, userId, name, cardNumber, bank,
   return result.id;
 }
 
-export async function getFamilyCreditCards(familyId) {
+export async function getUserCreditCards(familyId, userId) {
   return all(
     `SELECT cc.*, u.name as user_name 
      FROM credit_cards cc 
      JOIN users u ON u.id = cc.user_id
-     WHERE cc.family_id = ? AND cc.is_active = 1
+     WHERE cc.family_id = ? AND cc.user_id = ? AND cc.is_active = 1
      ORDER BY cc.name`,
-    [familyId]
+    [familyId, userId]
   );
 }
 
-export async function getCreditCardDetails(cardId) {
+export async function getCreditCardDetails(cardId, familyId, userId) {
   const card = await get(
-    'SELECT * FROM credit_cards WHERE id = ?',
-    [cardId]
+    'SELECT * FROM credit_cards WHERE id = ? AND family_id = ? AND user_id = ?',
+    [cardId, familyId, userId]
   );
 
   if (!card) return null;
@@ -51,7 +51,25 @@ export async function getCreditCardDetails(cardId) {
   };
 }
 
-export async function addCardTransaction(cardId, expenseId, description, amount, date, installments = 1) {
+export async function addCardTransaction(cardId, familyId, userId, expenseId, description, amount, date, installments = 1) {
+  const card = await get(
+    'SELECT id FROM credit_cards WHERE id = ? AND family_id = ? AND user_id = ?',
+    [cardId, familyId, userId]
+  );
+  if (!card) {
+    throw new Error('Card not found');
+  }
+
+  if (expenseId) {
+    const expense = await get(
+      'SELECT id FROM expenses WHERE id = ? AND family_id = ? AND user_id = ?',
+      [expenseId, familyId, userId]
+    );
+    if (!expense) {
+      throw new Error('Expense not found');
+    }
+  }
+
   const result = await run(
     `INSERT INTO card_transactions (credit_card_id, expense_id, description, amount, date, installments) 
      VALUES (?, ?, ?, ?, ?, ?)`,
@@ -60,19 +78,19 @@ export async function addCardTransaction(cardId, expenseId, description, amount,
   return result.id;
 }
 
-export async function updateCreditCard(cardId, updates) {
+export async function updateCreditCard(cardId, familyId, userId, updates) {
   const { name, limit, closingDay, dueDay } = updates;
   const result = await run(
-    'UPDATE credit_cards SET name = ?, limit = ?, closing_day = ?, due_day = ? WHERE id = ?',
-    [name, limit, closingDay, dueDay, cardId]
+    'UPDATE credit_cards SET name = ?, limit = ?, closing_day = ?, due_day = ? WHERE id = ? AND family_id = ? AND user_id = ?',
+    [name, limit, closingDay, dueDay, cardId, familyId, userId]
   );
   return result.changes > 0;
 }
 
-export async function deactivateCreditCard(cardId) {
+export async function deactivateCreditCard(cardId, familyId, userId) {
   const result = await run(
-    'UPDATE credit_cards SET is_active = 0 WHERE id = ?',
-    [cardId]
+    'UPDATE credit_cards SET is_active = 0 WHERE id = ? AND family_id = ? AND user_id = ?',
+    [cardId, familyId, userId]
   );
   return result.changes > 0;
 }

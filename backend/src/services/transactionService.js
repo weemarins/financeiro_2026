@@ -11,30 +11,30 @@ export async function createIncome(familyId, userId, categoryId, description, am
   return result.id;
 }
 
-export async function getFamilyIncomes(familyId, startDate, endDate) {
+export async function getUserIncomes(familyId, userId, startDate, endDate) {
   return all(
     `SELECT i.*, c.name as category_name, u.name as user_name 
      FROM incomes i 
      JOIN categories c ON c.id = i.category_id 
      JOIN users u ON u.id = i.user_id
-     WHERE i.family_id = ? AND i.date BETWEEN ? AND ?
+     WHERE i.family_id = ? AND i.user_id = ? AND i.date BETWEEN ? AND ?
      ORDER BY i.date DESC`,
-    [familyId, startDate, endDate]
+    [familyId, userId, startDate, endDate]
   );
 }
 
-export async function updateIncome(incomeId, updates) {
+export async function updateIncome(incomeId, familyId, userId, updates) {
   const { categoryId, description, amount, date, isRecurring, recurringType } = updates;
   const result = await run(
     `UPDATE incomes SET category_id = ?, description = ?, amount = ?, date = ?, is_recurring = ?, recurring_type = ?, updated_at = CURRENT_TIMESTAMP 
-     WHERE id = ?`,
-    [categoryId, description, amount, date, isRecurring ? 1 : 0, recurringType, incomeId]
+     WHERE id = ? AND family_id = ? AND user_id = ?`,
+    [categoryId, description, amount, date, isRecurring ? 1 : 0, recurringType, incomeId, familyId, userId]
   );
   return result.changes > 0;
 }
 
-export async function deleteIncome(incomeId) {
-  const result = await run('DELETE FROM incomes WHERE id = ?', [incomeId]);
+export async function deleteIncome(incomeId, familyId, userId) {
+  const result = await run('DELETE FROM incomes WHERE id = ? AND family_id = ? AND user_id = ?', [incomeId, familyId, userId]);
   return result.changes > 0;
 }
 
@@ -49,30 +49,30 @@ export async function createExpense(familyId, userId, categoryId, description, a
   return result.id;
 }
 
-export async function getFamilyExpenses(familyId, startDate, endDate) {
+export async function getUserExpenses(familyId, userId, startDate, endDate) {
   return all(
     `SELECT e.*, c.name as category_name, u.name as user_name 
      FROM expenses e 
      JOIN categories c ON c.id = e.category_id 
      JOIN users u ON u.id = e.user_id
-     WHERE e.family_id = ? AND e.date BETWEEN ? AND ?
+     WHERE e.family_id = ? AND e.user_id = ? AND e.date BETWEEN ? AND ?
      ORDER BY e.date DESC`,
-    [familyId, startDate, endDate]
+    [familyId, userId, startDate, endDate]
   );
 }
 
-export async function updateExpense(expenseId, updates) {
+export async function updateExpense(expenseId, familyId, userId, updates) {
   const { categoryId, description, amount, date, paymentMethod, isRecurring, recurringType, installments } = updates;
   const result = await run(
     `UPDATE expenses SET category_id = ?, description = ?, amount = ?, date = ?, payment_method = ?, is_recurring = ?, recurring_type = ?, installments = ?, updated_at = CURRENT_TIMESTAMP 
-     WHERE id = ?`,
-    [categoryId, description, amount, date, paymentMethod, isRecurring ? 1 : 0, recurringType, installments, expenseId]
+     WHERE id = ? AND family_id = ? AND user_id = ?`,
+    [categoryId, description, amount, date, paymentMethod, isRecurring ? 1 : 0, recurringType, installments, expenseId, familyId, userId]
   );
   return result.changes > 0;
 }
 
-export async function deleteExpense(expenseId) {
-  const result = await run('DELETE FROM expenses WHERE id = ?', [expenseId]);
+export async function deleteExpense(expenseId, familyId, userId) {
+  const result = await run('DELETE FROM expenses WHERE id = ? AND family_id = ? AND user_id = ?', [expenseId, familyId, userId]);
   return result.changes > 0;
 }
 

@@ -9,21 +9,21 @@ export async function createGoal(familyId, userId, name, description, goalAmount
   return result.id;
 }
 
-export async function getFamilyGoals(familyId) {
+export async function getUserGoals(familyId, userId) {
   return all(
     `SELECT g.*, u.name as user_name 
      FROM goals g 
      JOIN users u ON u.id = g.user_id
-     WHERE g.family_id = ? AND g.is_active = 1
+     WHERE g.family_id = ? AND g.user_id = ? AND g.is_active = 1
      ORDER BY g.target_date`,
-    [familyId]
+    [familyId, userId]
   );
 }
 
-export async function getGoalDetails(goalId) {
+export async function getGoalDetails(goalId, familyId, userId) {
   const goal = await get(
-    'SELECT * FROM goals WHERE id = ?',
-    [goalId]
+    'SELECT * FROM goals WHERE id = ? AND family_id = ? AND user_id = ?',
+    [goalId, familyId, userId]
   );
 
   if (!goal) return null;
@@ -41,18 +41,18 @@ export async function getGoalDetails(goalId) {
   };
 }
 
-export async function updateGoalProgress(goalId, amount) {
+export async function updateGoalProgress(goalId, familyId, userId, amount) {
   const result = await run(
-    'UPDATE goals SET current_amount = current_amount + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-    [amount, goalId]
+    'UPDATE goals SET current_amount = current_amount + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND family_id = ? AND user_id = ?',
+    [amount, goalId, familyId, userId]
   );
   return result.changes > 0;
 }
 
-export async function deleteGoal(goalId) {
+export async function deleteGoal(goalId, familyId, userId) {
   const result = await run(
-    'UPDATE goals SET is_active = 0 WHERE id = ?',
-    [goalId]
+    'UPDATE goals SET is_active = 0 WHERE id = ? AND family_id = ? AND user_id = ?',
+    [goalId, familyId, userId]
   );
   return result.changes > 0;
 }
@@ -90,7 +90,7 @@ export async function updateEmergencyFundTarget(familyId, newTarget) {
   return result.changes > 0;
 }
 
-export async function calculateEmergencyFundSuggestion(familyId, monthsOfExpenses = 3) {
+export async function calculateEmergencyFundSuggestion(familyId, userId, monthsOfExpenses = 3) {
   // Calcular despesa média mensal dos últimos 3 meses
   const lastDate = new Date();
   const threeMonthsAgo = new Date(lastDate.getFullYear(), lastDate.getMonth() - 3, 1).toISOString().split('T')[0];
@@ -98,8 +98,8 @@ export async function calculateEmergencyFundSuggestion(familyId, monthsOfExpense
 
   const avgExpense = await get(
     `SELECT SUM(amount) / 3 as avg FROM expenses 
-     WHERE family_id = ? AND date BETWEEN ? AND ?`,
-    [familyId, threeMonthsAgo, today]
+     WHERE family_id = ? AND user_id = ? AND date BETWEEN ? AND ?`,
+    [familyId, userId, threeMonthsAgo, today]
   );
 
   const suggestion = (avgExpense?.avg || 0) * monthsOfExpenses;
