@@ -9,25 +9,27 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [viewType, setViewType] = useState('month');
+  const currentDate = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth());
+  const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
 
   useEffect(() => {
     loadDashboardData();
-  }, [viewType]);
+  }, [viewType, selectedMonth, selectedYear]);
 
   const loadDashboardData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const today = new Date();
       let startDate, endDate;
 
       if (viewType === 'month') {
-        startDate = new Date(today.getFullYear(), today.getMonth(), 1);
-        endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        startDate = new Date(selectedYear, selectedMonth, 1);
+        endDate = new Date(selectedYear, selectedMonth + 1, 0);
       } else {
-        startDate = new Date(today.getFullYear(), 0, 1);
-        endDate = new Date(today.getFullYear(), 11, 31);
+        startDate = new Date(selectedYear, 0, 1);
+        endDate = new Date(selectedYear, 11, 31);
       }
 
       startDate = startDate.toISOString().split('T')[0];
@@ -64,6 +66,14 @@ export function DashboardPage() {
   }
 
   const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+  const monthOptions = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+  ];
+  const yearOptions = Array.from({ length: 11 }, (_, index) => currentDate.getFullYear() - 5 + index);
+  const selectedPeriodLabel = viewType === 'month'
+    ? `${monthOptions[selectedMonth]}/${selectedYear}`
+    : `${selectedYear}`;
 
   return (
     <MainLayout>
@@ -75,7 +85,7 @@ export function DashboardPage() {
             <p className="text-gray-600 mt-1">Visão geral financeira da família</p>
           </div>
 
-          <div className="flex space-x-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setViewType('month')}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
@@ -96,6 +106,32 @@ export function DashboardPage() {
             >
               Ano
             </button>
+
+            {viewType === 'month' && (
+              <select
+                value={selectedMonth}
+                onChange={(event) => setSelectedMonth(Number(event.target.value))}
+                className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-700"
+              >
+                {monthOptions.map((month, index) => (
+                  <option key={month} value={index}>
+                    {month}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            <select
+              value={selectedYear}
+              onChange={(event) => setSelectedYear(Number(event.target.value))}
+              className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-700"
+            >
+              {yearOptions.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -189,7 +225,7 @@ export function DashboardPage() {
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={[
                 {
-                  name: 'Mês Atual',
+                  name: selectedPeriodLabel,
                   receitas: data?.totalIncomes || 0,
                   despesas: data?.totalExpenses || 0,
                 },
