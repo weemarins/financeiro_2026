@@ -68,6 +68,8 @@ app.use(errorHandler);
 // Inicializar servidor
 async function startServer() {
   try {
+    await initializeDatabase();
+
     // Iniciar servidor
     app.listen(PORT, () => {
       console.log(`\n✅ Server is running at ${API_URL}`);
