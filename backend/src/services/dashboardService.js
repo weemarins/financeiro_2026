@@ -72,14 +72,41 @@ export async function getDashboardData(familyId, userId, startDate, endDate) {
     [familyId, userId, startDate, endDate]
   );
 
-  // Despesas por categoria
+  // Despesas por categoria (incluindo compras lançadas no cartão de crédito)
   const expensesByCategory = await all(
-    `SELECT c.name, SUM(e.amount) as total 
-     FROM expenses e 
-     JOIN categories c ON c.id = e.category_id 
-     WHERE e.family_id = ? AND e.user_id = ? AND e.date BETWEEN ? AND ? 
-     GROUP BY c.name`,
-    [familyId, userId, startDate, endDate]
+    `SELECT
+      name,
+      SUM(total) as total
+     FROM (
+      SELECT
+        c.name as name,
+        e.amount as total
+      FROM expenses e
+      JOIN categories c ON c.id = e.category_id
+      WHERE e.family_id = ? AND e.user_id = ? AND e.date BETWEEN ? AND ?
+
+      UNION ALL
+
+      SELECT
+        c.name as name,
+        ct.amount as total
+      FROM card_transactions ct
+      JOIN credit_cards cc ON cc.id = ct.credit_card_id
+      JOIN expenses e ON e.id = ct.expense_id
+      JOIN categories c ON c.id = e.category_id
+      WHERE cc.family_id = ? AND cc.user_id = ? AND ${invoiceDueDateExpression} BETWEEN ? AND ?
+     ) grouped_expenses
+     GROUP BY name`,
+    [
+      familyId,
+      userId,
+      startDate,
+      endDate,
+      familyId,
+      userId,
+      startDate,
+      endDate
+    ]
   );
 
   // Cartões de crédito
