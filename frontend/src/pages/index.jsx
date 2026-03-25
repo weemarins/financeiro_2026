@@ -415,6 +415,10 @@ export function CreditCardsPage() {
     (total, transaction) => total + Number(transaction.amount || 0),
     0
   );
+  const displayedBill = selectedCardDetails ? filteredBillTotal : 0;
+  const displayedAvailableLimit = selectedCardDetails
+    ? Number(selectedCardDetails.limit || 0) - displayedBill
+    : 0;
 
   const clearMessages = () => {
     setError('');
@@ -712,12 +716,12 @@ export function CreditCardsPage() {
                     <p className="text-xl font-bold text-gray-900">{currencyFormatter.format(Number(selectedCardDetails.limit || 0))}</p>
                   </div>
                   <div className="rounded-lg bg-gray-50 p-4 border">
-                    <p className="text-sm text-gray-500">Fatura atual</p>
-                    <p className="text-xl font-bold text-orange-700">{currencyFormatter.format(Number(selectedCardDetails.currentBill || 0))}</p>
+                    <p className="text-sm text-gray-500">Fatura do período</p>
+                    <p className="text-xl font-bold text-orange-700">{currencyFormatter.format(displayedBill)}</p>
                   </div>
                   <div className="rounded-lg bg-gray-50 p-4 border">
                     <p className="text-sm text-gray-500">Limite disponível</p>
-                    <p className="text-xl font-bold text-green-700">{currencyFormatter.format(Number(selectedCardDetails.availableLimit || 0))}</p>
+                    <p className="text-xl font-bold text-green-700">{currencyFormatter.format(displayedAvailableLimit)}</p>
                   </div>
                 </div>
               ) : (
