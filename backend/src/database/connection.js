@@ -26,18 +26,57 @@ export function initializeDatabase() {
       const schemaPath = path.join(__dirname, 'schema.sql');
       const schema = fs.readFileSync(schemaPath, 'utf8');
 
-      db.exec(schema, (err) => {
+      db.exec(schema, async (err) => {
         if (err) {
           reject(err);
           return;
         }
 
-        console.log('✓ Database initialized successfully');
-        db.close((err) => {
-          if (err) reject(err);
-          else resolve();
-        });
+        try {
+          await runDatabaseMigrations(db);
+          console.log('✓ Database initialized successfully');
+          db.close((closeError) => {
+            if (closeError) reject(closeError);
+            else resolve();
+          });
+        } catch (migrationError) {
+          db.close(() => reject(migrationError));
+        }
       });
+    });
+  });
+}
+
+async function runDatabaseMigrations(db) {
+  await ensureColumnExists(db, 'investments', 'expected_annual_return', 'DECIMAL(5, 2)');
+}
+
+function ensureColumnExists(db, tableName, columnName, columnDefinition) {
+  return new Promise((resolve, reject) => {
+    db.all(`PRAGMA table_info(${tableName})`, (pragmaError, columns) => {
+      if (pragmaError) {
+        reject(pragmaError);
+        return;
+      }
+
+      const columnExists = (columns || []).some((column) => column.name === columnName);
+      if (columnExists) {
+        resolve();
+        return;
+      }
+
+      db.run(
+        `ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDefinition}`,
+        (alterError) => {
+          if (alterError) {
+            reject(alterError);
+            return;
+          }
+
+          console.log(`✓ Migration applied: added ${columnName} to ${tableName}`);
+          resolve();
+        }
+      );
     });
   });
 }
