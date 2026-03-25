@@ -6,13 +6,9 @@ import { get, run } from './connection.js';
 
 dotenv.config();
 
-function getRequiredEnv(name) {
-  const value = process.env[name];
-  if (!value || !value.trim()) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return value.trim();
-}
+const DEFAULT_ADMIN_NAME = 'Administrador Inicial';
+const DEFAULT_ADMIN_EMAIL = 'admin@financeiro.local';
+const DEFAULT_ADMIN_PASSWORD = 'admin123';
 
 async function ensureFamily(familyName) {
   const existingFamily = await get('SELECT id FROM families WHERE name = ? LIMIT 1', [familyName]);
@@ -28,10 +24,11 @@ async function ensureFamily(familyName) {
 }
 
 async function createOrUpdateAdminUser() {
-  const name = process.env.ADMIN_NAME?.trim() || 'Administrador';
-  const email = getRequiredEnv('ADMIN_EMAIL');
-  const password = getRequiredEnv('ADMIN_PASSWORD');
+  const name = process.env.ADMIN_NAME?.trim() || DEFAULT_ADMIN_NAME;
+  const email = process.env.ADMIN_EMAIL?.trim() || DEFAULT_ADMIN_EMAIL;
+  const password = process.env.ADMIN_PASSWORD?.trim() || DEFAULT_ADMIN_PASSWORD;
   const familyName = process.env.ADMIN_FAMILY_NAME?.trim() || 'Administração';
+  const usingDefaultCredentials = !process.env.ADMIN_EMAIL?.trim() || !process.env.ADMIN_PASSWORD?.trim();
 
   const hashedPassword = await bcrypt.hash(password, 10);
   const familyId = await ensureFamily(familyName);
@@ -49,6 +46,10 @@ async function createOrUpdateAdminUser() {
       [familyId, name, hashedPassword, existingUser.id]
     );
     console.log(`✓ Admin atualizado com sucesso (user_id=${existingUser.id})`);
+    console.log(`🔐 Primeiro acesso: email=${email} | senha=${password}`);
+    if (usingDefaultCredentials) {
+      console.log('⚠️ Usando credenciais padrão. Defina ADMIN_EMAIL e ADMIN_PASSWORD para produção.');
+    }
     return;
   }
 
@@ -59,6 +60,10 @@ async function createOrUpdateAdminUser() {
   );
 
   console.log(`✓ Admin criado com sucesso (user_id=${created.id})`);
+  console.log(`🔐 Primeiro acesso: email=${email} | senha=${password}`);
+  if (usingDefaultCredentials) {
+    console.log('⚠️ Usando credenciais padrão. Defina ADMIN_EMAIL e ADMIN_PASSWORD para produção.');
+  }
 }
 
 createOrUpdateAdminUser()
