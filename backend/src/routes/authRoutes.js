@@ -12,5 +12,6 @@ router.post('/change-password', authenticateToken, authController.changePassword
 router.get('/family-users', authenticateToken, authController.getFamilyUsers);
 router.post('/family-users', authenticateToken, requireAdmin, authController.createFamilyUser);
 router.put('/family-users/:id', authenticateToken, requireAdmin, authController.updateFamilyUser);
+router.delete('/family-users/:id', authenticateToken, requireAdmin, authController.deleteFamilyUser);
 
 export default router;

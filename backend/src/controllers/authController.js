@@ -145,3 +145,28 @@ export async function updateFamilyUser(req, res) {
     res.status(500).json({ error: error.message });
   }
 }
+
+export async function deleteFamilyUser(req, res) {
+  try {
+    const familyId = req.user.familyId;
+    const requesterId = req.user.userId;
+    const userId = Number(req.params.id);
+
+    await authService.deleteFamilyUser(userId, familyId, requesterId);
+
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    if (error.message.includes('User not found')) {
+      return res.status(404).json({ error: error.message });
+    }
+
+    if (
+      error.message.includes('cannot delete your own user') ||
+      error.message.includes('family must have at least one admin')
+    ) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    res.status(500).json({ error: error.message });
+  }
+}

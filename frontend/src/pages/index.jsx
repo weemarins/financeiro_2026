@@ -1932,6 +1932,26 @@ export function UsersPage() {
     }
   };
 
+  const handleDeleteUser = async (targetUser) => {
+    if (!isAdmin) return;
+
+    const confirmed = window.confirm(`Deseja realmente excluir o usuário "${targetUser.name}"?`);
+    if (!confirmed) return;
+
+    try {
+      setSaving(true);
+      setError('');
+      await authService.deleteFamilyUser(targetUser.id);
+      setSuccess('Usuário removido com sucesso.');
+      await loadUsers();
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.error || 'Erro ao remover usuário.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <MainLayout>
       <div className="space-y-6">
@@ -2024,13 +2044,22 @@ export function UsersPage() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       {isAdmin && (
-                        <button
-                          onClick={() => handleSaveUser(item)}
-                          disabled={saving}
-                          className="px-3 py-1.5 bg-gray-800 text-white rounded-lg hover:bg-gray-900 disabled:opacity-60"
-                        >
-                          Salvar
-                        </button>
+                        <div className="inline-flex gap-2">
+                          <button
+                            onClick={() => handleSaveUser(item)}
+                            disabled={saving}
+                            className="px-3 py-1.5 bg-gray-800 text-white rounded-lg hover:bg-gray-900 disabled:opacity-60"
+                          >
+                            Salvar
+                          </button>
+                          <button
+                            onClick={() => handleDeleteUser(item)}
+                            disabled={saving}
+                            className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-60"
+                          >
+                            Excluir
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>

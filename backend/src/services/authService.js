@@ -138,3 +138,36 @@ export async function changePassword(userId, currentPassword, newPassword) {
 
   return true;
 }
+
+export async function deleteFamilyUser(userId, familyId, requesterId) {
+  const targetUser = await get(
+    'SELECT id, role FROM users WHERE id = ? AND family_id = ?',
+    [userId, familyId]
+  );
+
+  if (!targetUser) {
+    throw new Error('User not found');
+  }
+
+  if (Number(userId) === Number(requesterId)) {
+    throw new Error('You cannot delete your own user');
+  }
+
+  if (targetUser.role === 'admin') {
+    const remainingAdmins = await get(
+      'SELECT COUNT(*) AS total FROM users WHERE family_id = ? AND role = ? AND is_active = 1 AND id != ?',
+      [familyId, 'admin', userId]
+    );
+
+    if (!remainingAdmins || Number(remainingAdmins.total) === 0) {
+      throw new Error('A family must have at least one admin');
+    }
+  }
+
+  const result = await run(
+    'DELETE FROM users WHERE id = ? AND family_id = ?',
+    [userId, familyId]
+  );
+
+  return result.changes > 0;
+}
