@@ -861,6 +861,7 @@ export function InvestmentsPage() {
     name: '',
     type: 'fixed',
     initialAmount: '',
+    expectedAnnualReturn: '',
     description: '',
   });
   const [contributionData, setContributionData] = React.useState({
@@ -868,6 +869,7 @@ export function InvestmentsPage() {
     date: new Date().toISOString().slice(0, 10),
   });
   const [currentValue, setCurrentValue] = React.useState('');
+  const [expectedReturnValue, setExpectedReturnValue] = React.useState('');
 
   const currencyFormatter = new Intl.NumberFormat('pt-BR', {
     style: 'currency',
@@ -914,6 +916,7 @@ export function InvestmentsPage() {
       const details = response.data;
       setSelectedInvestment(details);
       setCurrentValue(details.current_amount ?? '');
+      setExpectedReturnValue(details.expected_annual_return ?? '');
     } catch (err) {
       console.error(err);
       setError('Não foi possível carregar os detalhes do investimento.');
@@ -941,10 +944,16 @@ export function InvestmentsPage() {
       type: formData.type,
       initialAmount: Number(formData.initialAmount),
       description: formData.description.trim(),
+      expectedAnnualReturn: formData.type === 'fixed' ? Number(formData.expectedAnnualReturn) : null,
     };
 
     if (!payload.name || !payload.type || !payload.initialAmount) {
       setError('Preencha nome, tipo e valor inicial.');
+      return;
+    }
+
+    if (payload.type === 'fixed' && (!payload.expectedAnnualReturn && payload.expectedAnnualReturn !== 0)) {
+      setError('Informe a rentabilidade anual esperada para renda fixa.');
       return;
     }
 
@@ -954,13 +963,15 @@ export function InvestmentsPage() {
         payload.name,
         payload.type,
         payload.initialAmount,
-        payload.description || null
+        payload.description || null,
+        payload.expectedAnnualReturn
       );
       setSuccess('Investimento criado com sucesso.');
       setFormData({
         name: '',
         type: 'fixed',
         initialAmount: '',
+        expectedAnnualReturn: '',
         description: '',
       });
       await loadInvestments();
@@ -1048,6 +1059,39 @@ export function InvestmentsPage() {
     }
   };
 
+  const handleUpdateExpectedReturn = async (event) => {
+    event.preventDefault();
+    resetMessages();
+
+    if (!selectedInvestmentId) {
+      setError('Selecione um investimento.');
+      return;
+    }
+
+    if (selectedInvestment?.type !== 'fixed') {
+      setError('A rentabilidade estimada só pode ser alterada para renda fixa.');
+      return;
+    }
+
+    const expectedReturn = Number(expectedReturnValue);
+    if (Number.isNaN(expectedReturn) || expectedReturn < 0) {
+      setError('Informe uma rentabilidade anual válida.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await investmentService.updateExpectedReturn(selectedInvestmentId, expectedReturn);
+      setSuccess('Rentabilidade anual atualizada com sucesso.');
+      await loadInvestmentDetails(selectedInvestmentId);
+    } catch (err) {
+      console.error(err);
+      setError('Erro ao atualizar rentabilidade anual.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const totalInvested = investments.reduce((acc, investment) => acc + Number(investment.current_amount || 0), 0);
 
   return (
@@ -1122,7 +1166,14 @@ export function InvestmentsPage() {
                 Tipo
                 <select
                   value={formData.type}
-                  onChange={(event) => setFormData((prev) => ({ ...prev, type: event.target.value }))}
+                  onChange={(event) => {
+                    const nextType = event.target.value;
+                    setFormData((prev) => ({
+                      ...prev,
+                      type: nextType,
+                      expectedAnnualReturn: nextType === 'variable' ? '' : prev.expectedAnnualReturn,
+                    }));
+                  }}
                   className="w-full mt-1 border rounded-lg px-3 py-2 bg-white"
                 >
                   <option value="fixed">Renda fixa</option>
@@ -1138,6 +1189,19 @@ export function InvestmentsPage() {
                   value={formData.initialAmount}
                   onChange={(event) => setFormData((prev) => ({ ...prev, initialAmount: event.target.value }))}
                   className="w-full mt-1 border rounded-lg px-3 py-2"
+                />
+              </label>
+              <label className="text-sm text-gray-700 block">
+                Rentabilidade anual esperada (%)
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.expectedAnnualReturn}
+                  disabled={formData.type === 'variable'}
+                  onChange={(event) => setFormData((prev) => ({ ...prev, expectedAnnualReturn: event.target.value }))}
+                  className="w-full mt-1 border rounded-lg px-3 py-2 disabled:bg-gray-100 disabled:text-gray-500"
+                  placeholder={formData.type === 'variable' ? 'Não aplicável para renda variável' : 'Ex: 12.5'}
                 />
               </label>
               <label className="text-sm text-gray-700 block">
@@ -1187,6 +1251,60 @@ export function InvestmentsPage() {
                     </p>
                   </div>
                 </div>
+
+                <form onSubmit={handleUpdateExpectedReturn} className="grid md:grid-cols-3 gap-3">
+                  <label className="text-sm text-gray-700 md:col-span-2">
+                    Rentabilidade anual esperada (%)
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={expectedReturnValue}
+                      disabled={selectedInvestment.type === 'variable'}
+                      onChange={(event) => setExpectedReturnValue(event.target.value)}
+                      className="w-full mt-1 border rounded-lg px-3 py-2 disabled:bg-gray-100 disabled:text-gray-500"
+                    />
+                  </label>
+                  <div className="flex items-end">
+                    <button
+                      type="submit"
+                      disabled={saving || selectedInvestment.type === 'variable'}
+                      className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-60"
+                    >
+                      Salvar taxa
+                    </button>
+                  </div>
+                </form>
+
+                {selectedInvestment.type === 'variable' && (
+                  <p className="text-xs text-gray-500 -mt-2">
+                    Em renda variável, a rentabilidade é de mercado e não deve ser editada manualmente.
+                  </p>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="rounded-lg bg-blue-50 p-3 border border-blue-100">
+                    <p className="text-sm text-gray-600">Curto prazo (1 ano)</p>
+                    <p className="text-lg font-bold text-blue-700">
+                      {currencyFormatter.format(Number(selectedInvestment.projectedReturns?.shortTerm || 0))}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-indigo-50 p-3 border border-indigo-100">
+                    <p className="text-sm text-gray-600">Médio prazo (3 anos)</p>
+                    <p className="text-lg font-bold text-indigo-700">
+                      {currencyFormatter.format(Number(selectedInvestment.projectedReturns?.mediumTerm || 0))}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-purple-50 p-3 border border-purple-100">
+                    <p className="text-sm text-gray-600">Longo prazo (10 anos)</p>
+                    <p className="text-lg font-bold text-purple-700">
+                      {currencyFormatter.format(Number(selectedInvestment.projectedReturns?.longTerm || 0))}
+                    </p>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 -mt-2">
+                  Projeções considerando juros compostos sobre o valor atual, sem novos aportes futuros.
+                </p>
 
                 <form onSubmit={handleUpdateValue} className="grid md:grid-cols-3 gap-3">
                   <label className="text-sm text-gray-700 md:col-span-2">

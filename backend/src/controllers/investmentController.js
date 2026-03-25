@@ -4,11 +4,20 @@ export async function createInvestment(req, res) {
   try {
     const familyId = req.user.familyId;
     const userId = req.user.userId;
-    const { name, type, initialAmount, description } = req.body;
+    const { name, type, initialAmount, description, expectedAnnualReturn } = req.body;
 
     if (!name || !type || !initialAmount) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
+
+    if (type === 'fixed' && (expectedAnnualReturn === undefined || expectedAnnualReturn === null || expectedAnnualReturn === '')) {
+      return res.status(400).json({ error: 'Expected annual return is required for fixed-income investments' });
+    }
+    if (type === 'fixed' && (Number.isNaN(Number(expectedAnnualReturn)) || Number(expectedAnnualReturn) < 0)) {
+      return res.status(400).json({ error: 'Expected annual return must be a non-negative number' });
+    }
+
+    const normalizedExpectedAnnualReturn = type === 'fixed' ? Number(expectedAnnualReturn) : null;
 
     const investmentId = await investmentService.createInvestment(
       familyId,
@@ -16,7 +25,8 @@ export async function createInvestment(req, res) {
       name,
       type,
       initialAmount,
-      description
+      description,
+      normalizedExpectedAnnualReturn
     );
 
     res.status(201).json({ id: investmentId, message: 'Investment created successfully' });
@@ -107,6 +117,31 @@ export async function deleteInvestment(req, res) {
 
     res.json({ message: 'Investment deleted successfully' });
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+}
+
+export async function updateExpectedAnnualReturn(req, res) {
+  try {
+    const { id } = req.params;
+    const familyId = req.user.familyId;
+    const userId = req.user.userId;
+    const { expectedAnnualReturn } = req.body;
+
+    if (expectedAnnualReturn === undefined || expectedAnnualReturn === null || expectedAnnualReturn === '') {
+      return res.status(400).json({ error: 'expectedAnnualReturn is required' });
+    }
+
+    const success = await investmentService.updateExpectedAnnualReturn(id, familyId, userId, expectedAnnualReturn);
+    if (!success) {
+      return res.status(404).json({ error: 'Investment not found' });
+    }
+
+    res.json({ message: 'Expected annual return updated successfully' });
+  } catch (error) {
+    if (error.message.includes('fixed-income')) {
+      return res.status(400).json({ error: error.message });
+    }
     res.status(500).json({ error: error.message });
   }
 }

@@ -117,6 +117,7 @@ CREATE TABLE IF NOT EXISTS investments (
   user_id INTEGER NOT NULL,
   name TEXT NOT NULL,
   type TEXT NOT NULL CHECK(type IN ('fixed', 'variable')),
+  expected_annual_return DECIMAL(5, 2),
   initial_amount DECIMAL(12, 2) NOT NULL,
   current_amount DECIMAL(12, 2) NOT NULL,
   description TEXT,
