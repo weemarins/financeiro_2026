@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from './contexts/AuthContext.jsx';
 import { PrivateRoute } from './components/PrivateRoute.jsx';
 import { LoginPage } from './pages/LoginPage.jsx';
-import { DashboardPage, TransactionsPage, CreditCardsPage, InvestmentsPage, GoalsPage } from './pages/index.jsx';
+import { DashboardPage, TransactionsPage, CreditCardsPage, InvestmentsPage, GoalsPage, UsersPage } from './pages/index.jsx';
 import './index.css';
 
 function App() {
@@ -54,6 +54,15 @@ function App() {
             element={
               <PrivateRoute>
                 <GoalsPage />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/users"
+            element={
+              <PrivateRoute>
+                <UsersPage />
               </PrivateRoute>
             }
           />

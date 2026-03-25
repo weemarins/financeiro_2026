@@ -1,8 +1,8 @@
 import jwt from 'jsonwebtoken';
 
-export function createAccessToken(userId, familyId) {
+export function createAccessToken(userId, familyId, role) {
   return jwt.sign(
-    { userId, familyId },
+    { userId, familyId, role },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRY || '7d' }
   );
