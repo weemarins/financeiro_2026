@@ -1,52 +1,21 @@
 #!/usr/bin/env node
 
-import { run, getDatabase } from './connection.js';
+import { run, get, getDatabase } from './connection.js';
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
 
 dotenv.config();
-
-function queryAll(query, params = []) {
-  return new Promise((resolve, reject) => {
-    const conn = getDatabase();
-    conn.all(query, params, (err, rows) => {
-      conn.close();
-      if (err) {
-        reject(err);
-        return;
-      }
-
-      resolve(rows || []);
-    });
-  });
-}
-
-async function cleanupSeedData() {
-  const tables = await queryAll(
-    `SELECT name
-     FROM sqlite_master
-     WHERE type = 'table'
-       AND name NOT LIKE 'sqlite_%'`
-  );
-
-  // Evita falha por ordem de FKs em bancos com schema legado
-  await run('PRAGMA foreign_keys = OFF');
-
-  for (const { name } of tables) {
-    await run(`DELETE FROM "${name}"`);
-  }
-
-  await run('PRAGMA foreign_keys = ON');
-}
 
 async function seedDatabase() {
   try {
     console.log('Starting database seeding...');
 
     const familyName = 'Família Silva';
-
-    // Garantir seed idempotente: limpa dados de execuções anteriores
-    await cleanupSeedData();
+    const existingFamilies = await get('SELECT COUNT(*) as total FROM families');
+    if (Number(existingFamilies?.total || 0) > 0) {
+      console.log('↷ Seed skipped: database already has data (existing data preserved).');
+      process.exit(0);
+    }
 
     // Criar família de exemplo
     const family = await run(

@@ -37,10 +37,16 @@ export async function getCreditCardDetails(cardId, familyId, userId) {
     [cardId]
   );
 
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+
   const currentBill = await get(
-    `SELECT SUM(amount) as total FROM card_transactions 
-     WHERE credit_card_id = ? AND date >= ?`,
-    [cardId, new Date().toISOString().split('T')[0]]
+    `SELECT SUM(amount) as total FROM card_transactions
+     WHERE credit_card_id = ?
+       AND date >= ?
+       AND date <= ?`,
+    [cardId, monthStart, monthEnd]
   );
 
   return {
@@ -81,7 +87,7 @@ export async function addCardTransaction(cardId, familyId, userId, expenseId, de
 export async function updateCreditCard(cardId, familyId, userId, updates) {
   const { name, limit, closingDay, dueDay } = updates;
   const result = await run(
-    'UPDATE credit_cards SET name = ?, limit = ?, closing_day = ?, due_day = ? WHERE id = ? AND family_id = ? AND user_id = ?',
+    'UPDATE credit_cards SET name = ?, "limit" = ?, closing_day = ?, due_day = ? WHERE id = ? AND family_id = ? AND user_id = ?',
     [name, limit, closingDay, dueDay, cardId, familyId, userId]
   );
   return result.changes > 0;
