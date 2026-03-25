@@ -1,10 +1,10 @@
 import { run, get, all } from '../database/connection.js';
 
-export async function createInvestment(familyId, userId, name, type, initialAmount, description) {
+export async function createInvestment(familyId, userId, name, type, initialAmount, description, expectedAnnualReturn) {
   const result = await run(
-    `INSERT INTO investments (family_id, user_id, name, type, initial_amount, current_amount, description) 
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [familyId, userId, name, type, initialAmount, initialAmount, description]
+    `INSERT INTO investments (family_id, user_id, name, type, expected_annual_return, initial_amount, current_amount, description) 
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [familyId, userId, name, type, expectedAnnualReturn, initialAmount, initialAmount, description]
   );
   return result.id;
 }
@@ -38,15 +38,23 @@ export async function getInvestmentDetails(investmentId, familyId, userId) {
     [investmentId]
   );
 
-  const profitLoss = investment.current_amount - investment.initial_amount;
-  const profitLossPercentage = investment.initial_amount > 0 ? (profitLoss / investment.initial_amount) * 100 : 0;
+  const totalContributedValue = (totalContributed?.total || 0) + investment.initial_amount;
+  const profitLoss = investment.current_amount - totalContributedValue;
+  const profitLossPercentage = totalContributedValue > 0 ? (profitLoss / totalContributedValue) * 100 : 0;
+  const expectedAnnualReturn = Number(investment.expected_annual_return || 0);
+  const projectedReturns = {
+    shortTerm: calculateProjection(investment.current_amount, expectedAnnualReturn, 1),
+    mediumTerm: calculateProjection(investment.current_amount, expectedAnnualReturn, 3),
+    longTerm: calculateProjection(investment.current_amount, expectedAnnualReturn, 10),
+  };
 
   return {
     ...investment,
     contributions,
-    totalContributed: (totalContributed?.total || 0) + investment.initial_amount,
+    totalContributed: totalContributedValue,
     profitLoss,
-    profitLossPercentage: profitLossPercentage.toFixed(2)
+    profitLossPercentage: profitLossPercentage.toFixed(2),
+    projectedReturns,
   };
 }
 
@@ -88,10 +96,38 @@ export async function updateInvestmentValue(investmentId, familyId, userId, newV
   return result.changes > 0;
 }
 
+export async function updateExpectedAnnualReturn(investmentId, familyId, userId, expectedAnnualReturn) {
+  const investment = await get(
+    'SELECT id, type FROM investments WHERE id = ? AND family_id = ? AND user_id = ? AND is_active = 1',
+    [investmentId, familyId, userId]
+  );
+
+  if (!investment) {
+    throw new Error('Investment not found');
+  }
+
+  if (investment.type !== 'fixed') {
+    throw new Error('Expected annual return can only be changed for fixed-income investments');
+  }
+
+  const result = await run(
+    'UPDATE investments SET expected_annual_return = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND family_id = ? AND user_id = ?',
+    [expectedAnnualReturn, investmentId, familyId, userId]
+  );
+  return result.changes > 0;
+}
+
 export async function deleteInvestment(investmentId, familyId, userId) {
   const result = await run(
     'UPDATE investments SET is_active = 0 WHERE id = ? AND family_id = ? AND user_id = ?',
     [investmentId, familyId, userId]
   );
   return result.changes > 0;
+}
+
+function calculateProjection(baseAmount, annualReturnPercentage, years) {
+  const principal = Number(baseAmount || 0);
+  const annualRate = Number(annualReturnPercentage || 0) / 100;
+  const futureValue = principal * ((1 + annualRate) ** years);
+  return Number(futureValue.toFixed(2));
 }

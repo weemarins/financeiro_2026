@@ -8,6 +8,7 @@ router.get('/investments', investmentController.getInvestments);
 router.get('/investments/:id', investmentController.getInvestmentDetails);
 router.post('/investments/:id/contributions', investmentController.addContribution);
 router.put('/investments/:id/value', investmentController.updateInvestmentValue);
+router.put('/investments/:id/expected-return', investmentController.updateExpectedAnnualReturn);
 router.delete('/investments/:id', investmentController.deleteInvestment);
 
 export default router;

@@ -96,8 +96,8 @@ export const creditCardService = {
 };
 
 export const investmentService = {
-  createInvestment: (name, type, initialAmount, description) =>
-    api.post('/investments/investments', { name, type, initialAmount, description }),
+  createInvestment: (name, type, initialAmount, description, expectedAnnualReturn) =>
+    api.post('/investments/investments', { name, type, initialAmount, description, expectedAnnualReturn }),
 
   getInvestments: () =>
     api.get('/investments/investments'),
@@ -110,6 +110,9 @@ export const investmentService = {
 
   updateInvestmentValue: (id, newValue) =>
     api.put(`/investments/investments/${id}/value`, { newValue }),
+
+  updateExpectedReturn: (id, expectedAnnualReturn) =>
+    api.put(`/investments/investments/${id}/expected-return`, { expectedAnnualReturn }),
 
   deleteInvestment: (id) =>
     api.delete(`/investments/investments/${id}`),
