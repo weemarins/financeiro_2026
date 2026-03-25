@@ -7,10 +7,21 @@ export async function getDashboardData(familyId, startDate, endDate) {
     [familyId, startDate, endDate]
   );
 
-  // Despesas totais
+  // Despesas totais (incluindo compras lançadas nos cartões)
   const totalExpenses = await get(
-    'SELECT SUM(amount) as total FROM expenses WHERE family_id = ? AND date BETWEEN ? AND ?',
-    [familyId, startDate, endDate]
+    `SELECT
+      COALESCE((
+        SELECT SUM(e.amount)
+        FROM expenses e
+        WHERE e.family_id = ? AND e.date BETWEEN ? AND ?
+      ), 0) +
+      COALESCE((
+        SELECT SUM(ct.amount)
+        FROM card_transactions ct
+        JOIN credit_cards cc ON cc.id = ct.credit_card_id
+        WHERE cc.family_id = ? AND ct.date BETWEEN ? AND ?
+      ), 0) as total`,
+    [familyId, startDate, endDate, familyId, startDate, endDate]
   );
 
   // Saldo em investimentos
