@@ -88,12 +88,12 @@ export async function getDashboardData(familyId, userId, startDate, endDate) {
       UNION ALL
 
       SELECT
-        c.name as name,
+        COALESCE(c.name, 'Cartão de crédito') as name,
         ct.amount as total
       FROM card_transactions ct
       JOIN credit_cards cc ON cc.id = ct.credit_card_id
-      JOIN expenses e ON e.id = ct.expense_id
-      JOIN categories c ON c.id = e.category_id
+      LEFT JOIN expenses e ON e.id = ct.expense_id
+      LEFT JOIN categories c ON c.id = e.category_id
       WHERE cc.family_id = ? AND cc.user_id = ? AND ${invoiceDueDateExpression} BETWEEN ? AND ?
      ) grouped_expenses
      GROUP BY name`,

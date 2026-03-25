@@ -394,11 +394,27 @@ export function CreditCardsPage() {
     date: new Date().toISOString().slice(0, 10),
     installments: 1,
   });
+  const currentDate = new Date();
+  const [selectedMonth, setSelectedMonth] = React.useState(currentDate.getMonth());
+  const [selectedYear, setSelectedYear] = React.useState(currentDate.getFullYear());
 
   const currencyFormatter = new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL',
   });
+  const monthOptions = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+  ];
+  const yearOptions = Array.from({ length: 11 }, (_, index) => currentDate.getFullYear() - 5 + index);
+  const filteredTransactions = (selectedCardDetails?.transactions || []).filter((transaction) => {
+    const [year, month] = String(transaction.date || '').split('-').map(Number);
+    return month === selectedMonth + 1 && year === selectedYear;
+  });
+  const filteredBillTotal = filteredTransactions.reduce(
+    (total, transaction) => total + Number(transaction.amount || 0),
+    0
+  );
 
   const clearMessages = () => {
     setError('');
@@ -765,9 +781,38 @@ export function CreditCardsPage() {
             </div>
 
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Compras da fatura</h2>
-              {!selectedCardDetails?.transactions?.length ? (
-                <p className="text-gray-500">Sem compras lançadas para este cartão.</p>
+              <div className="flex flex-wrap gap-3 items-end justify-between mb-4">
+                <h2 className="text-lg font-bold text-gray-900">Compras da fatura</h2>
+                <div className="flex flex-wrap gap-2 items-center">
+                  <select
+                    value={selectedMonth}
+                    onChange={(event) => setSelectedMonth(Number(event.target.value))}
+                    className="border rounded-lg px-3 py-2"
+                  >
+                    {monthOptions.map((month, index) => (
+                      <option key={month} value={index}>
+                        {month}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={selectedYear}
+                    onChange={(event) => setSelectedYear(Number(event.target.value))}
+                    className="border rounded-lg px-3 py-2"
+                  >
+                    {yearOptions.map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <p className="text-sm text-gray-600 mb-3">
+                Total no período: <span className="font-semibold text-orange-700">{currencyFormatter.format(filteredBillTotal)}</span>
+              </p>
+              {!filteredTransactions.length ? (
+                <p className="text-gray-500">Sem compras lançadas para este cartão no período selecionado.</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
@@ -780,7 +825,7 @@ export function CreditCardsPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {selectedCardDetails.transactions.map((transaction) => (
+                      {filteredTransactions.map((transaction) => (
                         <tr key={transaction.id} className="border-b last:border-b-0">
                           <td className="py-3">{transaction.date}</td>
                           <td className="py-3">{transaction.description}</td>
