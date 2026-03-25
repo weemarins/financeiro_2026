@@ -60,7 +60,7 @@ export async function getInvestmentDetails(investmentId, familyId, userId) {
 
 export async function addContribution(investmentId, familyId, userId, amount, date) {
   const investment = await get(
-    'SELECT id, initial_amount FROM investments WHERE id = ? AND family_id = ? AND user_id = ? AND is_active = 1',
+    'SELECT id, current_amount FROM investments WHERE id = ? AND family_id = ? AND user_id = ? AND is_active = 1',
     [investmentId, familyId, userId]
   );
   if (!investment) {
@@ -72,13 +72,9 @@ export async function addContribution(investmentId, familyId, userId, amount, da
     [investmentId, amount, date]
   );
 
-  // Atualizar valor atual do investimento
-  const totalContributions = await get(
-    'SELECT SUM(amount) as total FROM investment_contributions WHERE investment_id = ?',
-    [investmentId]
-  );
-
-  const newTotal = investment.initial_amount + (totalContributions?.total || 0);
+  // Atualizar valor atual preservando rendimento já acumulado.
+  // Somar aporte ao valor atual evita zerar lucro/prejuízo ao registrar novos aportes.
+  const newTotal = Number(investment.current_amount || 0) + Number(amount || 0);
 
   await run(
     'UPDATE investments SET current_amount = ? WHERE id = ?',
