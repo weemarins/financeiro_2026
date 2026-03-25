@@ -89,9 +89,9 @@ export function LoginPage() {
         </form>
 
         <div className="mt-6 text-center text-sm text-gray-600">
-          <p>Dados de teste:</p>
-          <p className="mt-2">Email: <strong>joao@example.com</strong></p>
-          <p>Senha: <strong>senha123</strong></p>
+          <p>Primeiro acesso (admin):</p>
+          <p className="mt-2">Email: <strong>admin@financeiro.local</strong></p>
+          <p>Senha: <strong>admin123</strong></p>
         </div>
       </div>
     </div>

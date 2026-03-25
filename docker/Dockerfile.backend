@@ -22,4 +22,4 @@ RUN mkdir -p /app/data
 EXPOSE 5000
 
 # Iniciar servidor com banco de dados
-CMD ["sh", "-c", "npm run db:init && npm run db:seed && npm start"]
+CMD ["sh", "-c", "npm run db:init && npm run db:seed && npm run db:create-admin && npm start"]
