@@ -6,6 +6,39 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+function queryAll(query, params = []) {
+  return new Promise((resolve, reject) => {
+    const conn = getDatabase();
+    conn.all(query, params, (err, rows) => {
+      conn.close();
+      if (err) {
+        reject(err);
+        return;
+      }
+
+      resolve(rows || []);
+    });
+  });
+}
+
+async function cleanupSeedData() {
+  const tables = await queryAll(
+    `SELECT name
+     FROM sqlite_master
+     WHERE type = 'table'
+       AND name NOT LIKE 'sqlite_%'`
+  );
+
+  // Evita falha por ordem de FKs em bancos com schema legado
+  await run('PRAGMA foreign_keys = OFF');
+
+  for (const { name } of tables) {
+    await run(`DELETE FROM "${name}"`);
+  }
+
+  await run('PRAGMA foreign_keys = ON');
+}
+
 async function seedDatabase() {
   try {
     console.log('Starting database seeding...');
@@ -13,23 +46,7 @@ async function seedDatabase() {
     const familyName = 'Família Silva';
 
     // Garantir seed idempotente: limpa dados de execuções anteriores
-    const cleanupTables = [
-      'card_transactions',
-      'incomes',
-      'expenses',
-      'investment_contributions',
-      'investments',
-      'goals',
-      'emergency_fund',
-      'credit_cards',
-      'categories',
-      'users',
-      'families'
-    ];
-
-    for (const table of cleanupTables) {
-      await run(`DELETE FROM ${table}`);
-    }
+    await cleanupSeedData();
 
     // Criar família de exemplo
     const family = await run(
