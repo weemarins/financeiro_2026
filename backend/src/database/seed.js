@@ -57,12 +57,17 @@ async function seedDatabase() {
     const familyId = family.id;
     console.log(`✓ Created family with ID: ${familyId}`);
 
-    // Criar usuários de exemplo
-    const hashedPassword = await bcrypt.hash('senha123', 10);
+    const seedPassword = process.env.SEED_USER_PASSWORD;
+    if (!seedPassword || !seedPassword.trim()) {
+      throw new Error('SEED_USER_PASSWORD não definido. Defina essa variável para criar usuários de exemplo.');
+    }
+
+    // Criar usuários de exemplo (sem perfil admin)
+    const hashedPassword = await bcrypt.hash(seedPassword.trim(), 10);
 
     const user1 = await run(
       'INSERT INTO users (family_id, name, email, password, role) VALUES (?, ?, ?, ?, ?)',
-      [familyId, 'João Silva', 'joao@example.com', hashedPassword, 'admin']
+      [familyId, 'João Silva', 'joao@example.com', hashedPassword, 'member']
     );
 
     const user2 = await run(

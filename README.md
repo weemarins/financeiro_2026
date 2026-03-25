@@ -170,10 +170,12 @@ npm run dev
 
 A aplicação estará disponível em: **http://localhost:5173**
 
-### Credenciais de Teste
-```
-Email: joao@example.com
-Senha: senha123
+### Criação de usuário admin (sem credenciais hardcoded)
+```bash
+cd backend
+ADMIN_EMAIL="admin@local.dev" \
+ADMIN_PASSWORD="<senha-forte>" \
+npm run db:create-admin
 ```
 
 ## 🐳 Deploy com Docker

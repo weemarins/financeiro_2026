@@ -85,7 +85,21 @@ success "Diretório de dados criado"
 info "Inicializando banco de dados..."
 cd backend
 npm run db:init
-npm run db:seed
+
+if [ -z "$SEED_USER_PASSWORD" ]; then
+    SEED_USER_PASSWORD=$(openssl rand -base64 12)
+fi
+
+if [ -z "$ADMIN_EMAIL" ]; then
+    ADMIN_EMAIL="admin@local.dev"
+fi
+
+if [ -z "$ADMIN_PASSWORD" ]; then
+    ADMIN_PASSWORD=$(openssl rand -base64 16)
+fi
+
+SEED_USER_PASSWORD="$SEED_USER_PASSWORD" npm run db:seed
+ADMIN_EMAIL="$ADMIN_EMAIL" ADMIN_PASSWORD="$ADMIN_PASSWORD" npm run db:create-admin
 success "Banco de dados inicializado com dados de exemplo"
 cd ..
 
@@ -103,11 +117,15 @@ echo ""
 echo "2. Para rodar com Docker:"
 echo "   - docker-compose -f docker/docker-compose.yml up -d"
 echo ""
-echo "3. Credenciais de teste:"
-echo "   Email: joao@example.com"
-echo "   Senha: senha123"
+echo "3. Usuário admin criado:"
+echo "   Email: $ADMIN_EMAIL"
+echo "   Senha: $ADMIN_PASSWORD"
 echo ""
-echo "4. URLs:"
+echo "4. Usuários de exemplo do seed:"
+echo "   Emails: joao@example.com e maria@example.com"
+echo "   Senha: $SEED_USER_PASSWORD"
+echo ""
+echo "5. URLs:"
 echo "   Frontend: http://localhost:5173"
 echo "   Backend: http://localhost:5000"
 echo "   API: http://localhost:5000/api"
