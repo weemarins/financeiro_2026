@@ -1,6 +1,6 @@
 import React from 'react';
 import { MainLayout } from '../components/Layout.jsx';
-import { creditCardService, investmentService, transactionService } from '../services/index.js';
+import { creditCardService, goalsService, investmentService, transactionService } from '../services/index.js';
 import { DashboardPage as Dashboard } from './DashboardPage.jsx';
 
 export { Dashboard as DashboardPage };
@@ -1231,6 +1231,284 @@ export function InvestmentsPage() {
 }
 
 export function GoalsPage() {
+  const [goals, setGoals] = React.useState([]);
+  const [selectedGoalId, setSelectedGoalId] = React.useState('');
+  const [selectedGoalDetails, setSelectedGoalDetails] = React.useState(null);
+  const [emergencyFund, setEmergencyFund] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const [saving, setSaving] = React.useState(false);
+  const [error, setError] = React.useState('');
+  const [success, setSuccess] = React.useState('');
+  const [goalForm, setGoalForm] = React.useState({
+    name: '',
+    description: '',
+    goalAmount: '',
+    frequency: 'monthly',
+    targetDate: '',
+  });
+  const [progressAmount, setProgressAmount] = React.useState('');
+  const [emergencyTarget, setEmergencyTarget] = React.useState('');
+  const [emergencyContribution, setEmergencyContribution] = React.useState('');
+  const [monthsOfExpenses, setMonthsOfExpenses] = React.useState(3);
+  const [suggestion, setSuggestion] = React.useState(null);
+
+  const currencyFormatter = new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  });
+
+  const clearMessages = () => {
+    setError('');
+    setSuccess('');
+  };
+
+  const loadGoals = React.useCallback(async () => {
+    const response = await goalsService.getGoals();
+    const list = response.data || [];
+    setGoals(list);
+
+    if (!list.length) {
+      setSelectedGoalId('');
+      setSelectedGoalDetails(null);
+      return;
+    }
+
+    const hasCurrent = list.some((goal) => String(goal.id) === String(selectedGoalId));
+    const nextId = hasCurrent ? String(selectedGoalId) : String(list[0].id);
+    setSelectedGoalId(nextId);
+  }, [selectedGoalId]);
+
+  const loadGoalDetails = React.useCallback(async (goalId) => {
+    if (!goalId) {
+      setSelectedGoalDetails(null);
+      return;
+    }
+
+    const response = await goalsService.getGoalDetails(goalId);
+    setSelectedGoalDetails(response.data);
+  }, []);
+
+  const loadEmergencyFund = React.useCallback(async () => {
+    try {
+      const response = await goalsService.getEmergencyFund();
+      setEmergencyFund(response.data);
+      setEmergencyTarget(response.data?.target_amount ? String(response.data.target_amount) : '');
+    } catch (err) {
+      if (err.response?.status === 404) {
+        setEmergencyFund(null);
+        return;
+      }
+
+      throw err;
+    }
+  }, []);
+
+  const loadData = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      clearMessages();
+      await Promise.all([loadGoals(), loadEmergencyFund()]);
+    } catch (err) {
+      console.error(err);
+      setError('Não foi possível carregar as metas.');
+    } finally {
+      setLoading(false);
+    }
+  }, [loadGoals, loadEmergencyFund]);
+
+  React.useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  React.useEffect(() => {
+    const run = async () => {
+      try {
+        await loadGoalDetails(selectedGoalId);
+      } catch (err) {
+        console.error(err);
+        setError('Não foi possível carregar os detalhes da meta.');
+      }
+    };
+
+    run();
+  }, [selectedGoalId, loadGoalDetails]);
+
+  const handleCreateGoal = async (event) => {
+    event.preventDefault();
+    clearMessages();
+
+    const payload = {
+      name: goalForm.name.trim(),
+      description: goalForm.description.trim(),
+      goalAmount: Number(goalForm.goalAmount),
+      frequency: goalForm.frequency,
+      targetDate: goalForm.targetDate || null,
+    };
+
+    if (!payload.name || !payload.goalAmount) {
+      setError('Preencha nome e valor da meta.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await goalsService.createGoal(
+        payload.name,
+        payload.description || null,
+        payload.goalAmount,
+        payload.frequency,
+        payload.targetDate
+      );
+      setSuccess('Meta criada com sucesso.');
+      setGoalForm({
+        name: '',
+        description: '',
+        goalAmount: '',
+        frequency: 'monthly',
+        targetDate: '',
+      });
+      await loadGoals();
+    } catch (err) {
+      console.error(err);
+      setError('Não foi possível criar a meta.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddProgress = async (event) => {
+    event.preventDefault();
+    clearMessages();
+
+    if (!selectedGoalId) {
+      setError('Selecione uma meta para registrar progresso.');
+      return;
+    }
+
+    const amount = Number(progressAmount);
+    if (!amount || amount <= 0) {
+      setError('Informe um valor válido para o progresso.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await goalsService.updateGoalProgress(selectedGoalId, amount);
+      setSuccess('Progresso atualizado com sucesso.');
+      setProgressAmount('');
+      await loadGoals();
+      await loadGoalDetails(selectedGoalId);
+    } catch (err) {
+      console.error(err);
+      setError('Não foi possível atualizar o progresso da meta.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteGoal = async () => {
+    clearMessages();
+    if (!selectedGoalId) return;
+
+    try {
+      setSaving(true);
+      await goalsService.deleteGoal(selectedGoalId);
+      setSuccess('Meta removida com sucesso.');
+      await loadGoals();
+    } catch (err) {
+      console.error(err);
+      setError('Não foi possível remover a meta.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCreateEmergencyFund = async (event) => {
+    event.preventDefault();
+    clearMessages();
+
+    const target = Number(emergencyTarget);
+    if (!target || target <= 0) {
+      setError('Informe um valor alvo válido para a reserva.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await goalsService.createEmergencyFund(target);
+      setSuccess('Reserva de emergência criada com sucesso.');
+      await loadEmergencyFund();
+    } catch (err) {
+      console.error(err);
+      setError('Não foi possível criar a reserva de emergência.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUpdateEmergencyTarget = async (event) => {
+    event.preventDefault();
+    clearMessages();
+
+    const target = Number(emergencyTarget);
+    if (!target || target <= 0) {
+      setError('Informe um valor alvo válido.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await goalsService.updateEmergencyFundTarget(target);
+      setSuccess('Meta da reserva atualizada com sucesso.');
+      await loadEmergencyFund();
+    } catch (err) {
+      console.error(err);
+      setError('Não foi possível atualizar o alvo da reserva.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddEmergencyContribution = async (event) => {
+    event.preventDefault();
+    clearMessages();
+
+    const amount = Number(emergencyContribution);
+    if (!amount || amount <= 0) {
+      setError('Informe um valor de aporte válido.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await goalsService.addToEmergencyFund(amount);
+      setEmergencyContribution('');
+      setSuccess('Aporte registrado na reserva de emergência.');
+      await loadEmergencyFund();
+    } catch (err) {
+      console.error(err);
+      setError('Não foi possível adicionar aporte na reserva.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCalculateSuggestion = async () => {
+    clearMessages();
+    try {
+      const response = await goalsService.calculateEmergencyFundSuggestion(monthsOfExpenses);
+      setSuggestion(Number(response.data?.suggestion || 0));
+      setSuccess('Sugestão calculada com base nas despesas recentes.');
+      await loadEmergencyFund();
+    } catch (err) {
+      console.error(err);
+      setError('Não foi possível calcular a sugestão da reserva.');
+    }
+  };
+
+  const totalPlanned = goals.reduce((acc, goal) => acc + Number(goal.goal_amount || 0), 0);
+  const totalCurrent = goals.reduce((acc, goal) => acc + Number(goal.current_amount || 0), 0);
+
   return (
     <MainLayout>
       <div className="space-y-6">
@@ -1239,12 +1517,340 @@ export function GoalsPage() {
           <p className="text-gray-600 mt-1">Crie e acompanhe suas metas</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="text-center py-12">
-            <p className="text-gray-500">
-              Funcionalidade de metas em desenvolvimento...
+        {(error || success) && (
+          <div className={`rounded-lg px-4 py-3 ${error ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+            {error || success}
+          </div>
+        )}
+
+        <div className="grid md:grid-cols-3 gap-4">
+          <div className="bg-white rounded-lg shadow p-5 border">
+            <p className="text-sm text-gray-500">Total planejado em metas</p>
+            <p className="text-2xl font-bold text-gray-900">{currencyFormatter.format(totalPlanned)}</p>
+          </div>
+          <div className="bg-white rounded-lg shadow p-5 border">
+            <p className="text-sm text-gray-500">Total já acumulado</p>
+            <p className="text-2xl font-bold text-blue-700">{currencyFormatter.format(totalCurrent)}</p>
+          </div>
+          <div className="bg-white rounded-lg shadow p-5 border">
+            <p className="text-sm text-gray-500">Reserva de emergência</p>
+            <p className="text-2xl font-bold text-green-700">
+              {currencyFormatter.format(Number(emergencyFund?.current_amount || 0))}
             </p>
           </div>
+        </div>
+
+        <div className="grid lg:grid-cols-3 gap-6">
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">Nova meta</h2>
+            <form onSubmit={handleCreateGoal} className="space-y-3">
+              <label className="block text-sm text-gray-700">
+                Nome
+                <input
+                  value={goalForm.name}
+                  onChange={(event) => setGoalForm((prev) => ({ ...prev, name: event.target.value }))}
+                  className="w-full mt-1 border rounded-lg px-3 py-2"
+                  placeholder="Ex: Viagem de férias"
+                />
+              </label>
+              <label className="block text-sm text-gray-700">
+                Descrição
+                <textarea
+                  value={goalForm.description}
+                  onChange={(event) => setGoalForm((prev) => ({ ...prev, description: event.target.value }))}
+                  className="w-full mt-1 border rounded-lg px-3 py-2"
+                  rows="3"
+                />
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block text-sm text-gray-700">
+                  Valor alvo
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={goalForm.goalAmount}
+                    onChange={(event) => setGoalForm((prev) => ({ ...prev, goalAmount: event.target.value }))}
+                    className="w-full mt-1 border rounded-lg px-3 py-2"
+                  />
+                </label>
+                <label className="block text-sm text-gray-700">
+                  Frequência
+                  <select
+                    value={goalForm.frequency}
+                    onChange={(event) => setGoalForm((prev) => ({ ...prev, frequency: event.target.value }))}
+                    className="w-full mt-1 border rounded-lg px-3 py-2 bg-white"
+                  >
+                    <option value="monthly">Mensal</option>
+                    <option value="weekly">Semanal</option>
+                    <option value="yearly">Anual</option>
+                    <option value="custom">Personalizada</option>
+                  </select>
+                </label>
+              </div>
+              <label className="block text-sm text-gray-700">
+                Data alvo (opcional)
+                <input
+                  type="date"
+                  value={goalForm.targetDate}
+                  onChange={(event) => setGoalForm((prev) => ({ ...prev, targetDate: event.target.value }))}
+                  className="w-full mt-1 border rounded-lg px-3 py-2"
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={saving}
+                className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 disabled:opacity-60"
+              >
+                {saving ? 'Salvando...' : 'Criar meta'}
+              </button>
+            </form>
+          </div>
+
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-4">Metas cadastradas</h2>
+              {loading ? (
+                <p className="text-gray-500">Carregando metas...</p>
+              ) : !goals.length ? (
+                <p className="text-gray-500">Nenhuma meta cadastrada ainda.</p>
+              ) : (
+                <div className="space-y-3">
+                  {goals.map((goal) => {
+                    const progress = Number(goal.goal_amount) > 0
+                      ? Math.min(100, (Number(goal.current_amount || 0) / Number(goal.goal_amount)) * 100)
+                      : 0;
+
+                    return (
+                      <button
+                        type="button"
+                        key={goal.id}
+                        onClick={() => setSelectedGoalId(String(goal.id))}
+                        className={`w-full text-left border rounded-lg p-4 transition ${
+                          String(goal.id) === selectedGoalId ? 'border-blue-500 bg-blue-50' : 'hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex flex-wrap justify-between gap-2">
+                          <div>
+                            <p className="font-semibold text-gray-900">{goal.name}</p>
+                            <p className="text-sm text-gray-500">
+                              {goal.target_date ? `Meta para ${goal.target_date}` : 'Sem data alvo definida'}
+                            </p>
+                          </div>
+                          <p className="font-semibold text-gray-900">{currencyFormatter.format(Number(goal.goal_amount || 0))}</p>
+                        </div>
+                        <div className="mt-3 w-full bg-gray-200 rounded-full h-2.5">
+                          <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${progress}%` }} />
+                        </div>
+                        <p className="text-xs text-gray-600 mt-2">
+                          {currencyFormatter.format(Number(goal.current_amount || 0))} acumulado ({progress.toFixed(1)}%)
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="bg-white rounded-lg shadow p-6 space-y-4">
+              <h2 className="text-lg font-bold text-gray-900">Detalhes e progresso da meta</h2>
+              {!selectedGoalDetails ? (
+                <p className="text-gray-500">Selecione uma meta para visualizar os detalhes.</p>
+              ) : (
+                <>
+                  <div className="grid md:grid-cols-4 gap-3">
+                    <div className="rounded-lg bg-gray-50 p-3 border">
+                      <p className="text-sm text-gray-500">Objetivo</p>
+                      <p className="text-lg font-bold text-gray-900">
+                        {currencyFormatter.format(Number(selectedGoalDetails.goal_amount || 0))}
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-gray-50 p-3 border">
+                      <p className="text-sm text-gray-500">Atual</p>
+                      <p className="text-lg font-bold text-blue-700">
+                        {currencyFormatter.format(Number(selectedGoalDetails.current_amount || 0))}
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-gray-50 p-3 border">
+                      <p className="text-sm text-gray-500">Falta</p>
+                      <p className="text-lg font-bold text-orange-700">
+                        {currencyFormatter.format(Number(selectedGoalDetails.remainingAmount || 0))}
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-gray-50 p-3 border">
+                      <p className="text-sm text-gray-500">Prazo restante</p>
+                      <p className="text-lg font-bold text-gray-900">
+                        {selectedGoalDetails.daysRemaining ?? '-'} dias
+                      </p>
+                    </div>
+                  </div>
+
+                  <form onSubmit={handleAddProgress} className="grid md:grid-cols-4 gap-3">
+                    <label className="md:col-span-2 text-sm text-gray-700">
+                      Registrar aporte na meta
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={progressAmount}
+                        onChange={(event) => setProgressAmount(event.target.value)}
+                        className="w-full mt-1 border rounded-lg px-3 py-2"
+                      />
+                    </label>
+                    <div className="flex items-end">
+                      <button
+                        type="submit"
+                        disabled={saving}
+                        className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60"
+                      >
+                        Adicionar progresso
+                      </button>
+                    </div>
+                    <div className="flex items-end">
+                      <button
+                        type="button"
+                        onClick={handleDeleteGoal}
+                        disabled={saving}
+                        className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-60"
+                      >
+                        Remover meta
+                      </button>
+                    </div>
+                  </form>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6 space-y-5">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">Reserva de emergência</h2>
+            <p className="text-sm text-gray-600 mt-1">
+              Defina um objetivo, registre aportes e calcule uma sugestão com base nas despesas da família.
+            </p>
+          </div>
+
+          {!emergencyFund ? (
+            <form onSubmit={handleCreateEmergencyFund} className="flex flex-col md:flex-row gap-3 md:items-end">
+              <label className="text-sm text-gray-700 flex-1">
+                Valor alvo da reserva
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={emergencyTarget}
+                  onChange={(event) => setEmergencyTarget(event.target.value)}
+                  className="w-full mt-1 border rounded-lg px-3 py-2"
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={saving}
+                className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 disabled:opacity-60"
+              >
+                Criar reserva
+              </button>
+            </form>
+          ) : (
+            <>
+              <div className="grid md:grid-cols-3 gap-3">
+                <div className="rounded-lg bg-gray-50 p-4 border">
+                  <p className="text-sm text-gray-500">Valor atual</p>
+                  <p className="text-xl font-bold text-green-700">
+                    {currencyFormatter.format(Number(emergencyFund.current_amount || 0))}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-gray-50 p-4 border">
+                  <p className="text-sm text-gray-500">Meta da reserva</p>
+                  <p className="text-xl font-bold text-gray-900">
+                    {currencyFormatter.format(Number(emergencyFund.target_amount || 0))}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-gray-50 p-4 border">
+                  <p className="text-sm text-gray-500">Sugestão mensal</p>
+                  <p className="text-xl font-bold text-blue-700">
+                    {currencyFormatter.format(Number(emergencyFund.monthly_suggestion || 0))}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <form onSubmit={handleUpdateEmergencyTarget} className="space-y-2 border rounded-lg p-4">
+                  <h3 className="font-semibold text-gray-900">Atualizar alvo da reserva</h3>
+                  <label className="text-sm text-gray-700 block">
+                    Novo valor alvo
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={emergencyTarget}
+                      onChange={(event) => setEmergencyTarget(event.target.value)}
+                      className="w-full mt-1 border rounded-lg px-3 py-2"
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 disabled:opacity-60"
+                  >
+                    Atualizar meta
+                  </button>
+                </form>
+
+                <form onSubmit={handleAddEmergencyContribution} className="space-y-2 border rounded-lg p-4">
+                  <h3 className="font-semibold text-gray-900">Adicionar aporte</h3>
+                  <label className="text-sm text-gray-700 block">
+                    Valor do aporte
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={emergencyContribution}
+                      onChange={(event) => setEmergencyContribution(event.target.value)}
+                      className="w-full mt-1 border rounded-lg px-3 py-2"
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60"
+                  >
+                    Adicionar
+                  </button>
+                </form>
+              </div>
+
+              <div className="border rounded-lg p-4 space-y-3">
+                <h3 className="font-semibold text-gray-900">Calcular sugestão baseada em despesas</h3>
+                <div className="flex flex-col md:flex-row gap-3 md:items-end">
+                  <label className="text-sm text-gray-700">
+                    Meses de despesas
+                    <input
+                      type="number"
+                      min="1"
+                      max="24"
+                      value={monthsOfExpenses}
+                      onChange={(event) => setMonthsOfExpenses(Number(event.target.value))}
+                      className="mt-1 border rounded-lg px-3 py-2 w-36"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleCalculateSuggestion}
+                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+                  >
+                    Calcular sugestão
+                  </button>
+                  {suggestion !== null && (
+                    <p className="text-sm text-gray-700">
+                      Última sugestão calculada: <span className="font-semibold">{currencyFormatter.format(suggestion)}</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </MainLayout>
