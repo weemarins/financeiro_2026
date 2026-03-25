@@ -1,4 +1,36 @@
-import { run, get, all } from '../database/connection.js';
+import { get, all } from '../database/connection.js';
+
+const invoiceDueDateExpression = `
+CASE
+  WHEN cc.closing_day IS NULL OR cc.due_day IS NULL THEN ct.date
+  ELSE
+    CASE
+      WHEN cc.due_day > cc.closing_day THEN
+        date(
+          CASE
+            WHEN CAST(strftime('%d', ct.date) AS INTEGER) <= cc.closing_day THEN
+              date(date(ct.date, 'start of month'), '+' || (cc.closing_day - 1) || ' days')
+            ELSE
+              date(date(ct.date, 'start of month'), '+1 month', '+' || (cc.closing_day - 1) || ' days')
+          END,
+          'start of month',
+          '+' || (cc.due_day - 1) || ' days'
+        )
+      ELSE
+        date(
+          CASE
+            WHEN CAST(strftime('%d', ct.date) AS INTEGER) <= cc.closing_day THEN
+              date(date(ct.date, 'start of month'), '+' || (cc.closing_day - 1) || ' days')
+            ELSE
+              date(date(ct.date, 'start of month'), '+1 month', '+' || (cc.closing_day - 1) || ' days')
+          END,
+          'start of month',
+          '+1 month',
+          '+' || (cc.due_day - 1) || ' days'
+        )
+    END
+END
+`;
 
 export async function getDashboardData(familyId, startDate, endDate) {
   // Receitas totais
@@ -19,7 +51,7 @@ export async function getDashboardData(familyId, startDate, endDate) {
         SELECT SUM(ct.amount)
         FROM card_transactions ct
         JOIN credit_cards cc ON cc.id = ct.credit_card_id
-        WHERE cc.family_id = ? AND ct.date BETWEEN ? AND ?
+        WHERE cc.family_id = ? AND ${invoiceDueDateExpression} BETWEEN ? AND ?
       ), 0) as total`,
     [familyId, startDate, endDate, familyId, startDate, endDate]
   );
