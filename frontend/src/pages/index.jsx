@@ -859,7 +859,7 @@ export function InvestmentsPage() {
   const [success, setSuccess] = React.useState('');
   const [formData, setFormData] = React.useState({
     name: '',
-    type: 'stocks',
+    type: 'fixed',
     initialAmount: '',
     description: '',
   });
@@ -959,7 +959,7 @@ export function InvestmentsPage() {
       setSuccess('Investimento criado com sucesso.');
       setFormData({
         name: '',
-        type: 'stocks',
+        type: 'fixed',
         initialAmount: '',
         description: '',
       });
@@ -1095,7 +1095,7 @@ export function InvestmentsPage() {
                           }`}
                         >
                           <td className="py-3">{investment.name}</td>
-                          <td className="py-3 capitalize">{investment.type}</td>
+                          <td className="py-3">{investment.type === 'fixed' ? 'Renda fixa' : 'Renda variável'}</td>
                           <td className="py-3 font-semibold">{currencyFormatter.format(Number(investment.current_amount || 0))}</td>
                         </tr>
                       ))}
@@ -1125,11 +1125,8 @@ export function InvestmentsPage() {
                   onChange={(event) => setFormData((prev) => ({ ...prev, type: event.target.value }))}
                   className="w-full mt-1 border rounded-lg px-3 py-2 bg-white"
                 >
-                  <option value="stocks">Ações</option>
-                  <option value="fixed_income">Renda fixa</option>
-                  <option value="crypto">Cripto</option>
-                  <option value="funds">Fundos</option>
-                  <option value="other">Outros</option>
+                  <option value="fixed">Renda fixa</option>
+                  <option value="variable">Renda variável</option>
                 </select>
               </label>
               <label className="text-sm text-gray-700 block">
