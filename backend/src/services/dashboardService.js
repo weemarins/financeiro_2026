@@ -33,6 +33,38 @@ END
 `;
 
 export async function getDashboardData(familyId, userId, startDate, endDate) {
+  const expensesInstallmentsCte = `
+WITH RECURSIVE expense_installments AS (
+  SELECT
+    e.id,
+    e.family_id,
+    e.user_id,
+    e.category_id,
+    e.payment_method,
+    e.amount,
+    COALESCE(NULLIF(e.installments, 0), 1) as installments,
+    1 as installment_current,
+    date(e.date) as installment_date
+  FROM expenses e
+  WHERE e.family_id = ? AND e.user_id = ?
+
+  UNION ALL
+
+  SELECT
+    ei.id,
+    ei.family_id,
+    ei.user_id,
+    ei.category_id,
+    ei.payment_method,
+    ei.amount,
+    ei.installments,
+    ei.installment_current + 1,
+    date(ei.installment_date, '+1 month')
+  FROM expense_installments ei
+  WHERE ei.installment_current < ei.installments
+)
+`;
+
   // Receitas totais
   const totalIncomes = await get(
     'SELECT SUM(amount) as total FROM incomes WHERE family_id = ? AND user_id = ? AND date BETWEEN ? AND ?',
@@ -41,11 +73,17 @@ export async function getDashboardData(familyId, userId, startDate, endDate) {
 
   // Despesas totais (incluindo compras lançadas nos cartões)
   const totalExpenses = await get(
-    `SELECT
+    `${expensesInstallmentsCte}
+     SELECT
       COALESCE((
-        SELECT SUM(e.amount)
-        FROM expenses e
-        WHERE e.family_id = ? AND e.user_id = ? AND e.date BETWEEN ? AND ?
+        SELECT SUM(
+          CASE
+            WHEN ei.installments > 1 AND COALESCE(ei.payment_method, 'cash') != 'credit_card' THEN ei.amount / ei.installments
+            ELSE ei.amount
+          END
+        )
+        FROM expense_installments ei
+        WHERE ei.installment_date BETWEEN ? AND ?
       ), 0) +
       COALESCE((
         SELECT SUM(ct.amount)
@@ -77,16 +115,20 @@ export async function getDashboardData(familyId, userId, startDate, endDate) {
 
   // Despesas por categoria (incluindo compras lançadas no cartão de crédito)
   const expensesByCategory = await all(
-    `SELECT
+    `${expensesInstallmentsCte}
+     SELECT
       name,
       SUM(total) as total
      FROM (
       SELECT
         c.name as name,
-        e.amount as total
-      FROM expenses e
-      JOIN categories c ON c.id = e.category_id
-      WHERE e.family_id = ? AND e.user_id = ? AND e.date BETWEEN ? AND ?
+        CASE
+          WHEN ei.installments > 1 AND COALESCE(ei.payment_method, 'cash') != 'credit_card' THEN ei.amount / ei.installments
+          ELSE ei.amount
+        END as total
+      FROM expense_installments ei
+      JOIN categories c ON c.id = ei.category_id
+      WHERE ei.installment_date BETWEEN ? AND ?
 
       UNION ALL
 

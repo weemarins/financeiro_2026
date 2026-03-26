@@ -51,12 +51,72 @@ export async function createExpense(familyId, userId, categoryId, description, a
 
 export async function getUserExpenses(familyId, userId, startDate, endDate) {
   return all(
-    `SELECT e.*, c.name as category_name, u.name as user_name 
-     FROM expenses e 
-     JOIN categories c ON c.id = e.category_id 
-     JOIN users u ON u.id = e.user_id
-     WHERE e.family_id = ? AND e.user_id = ? AND e.date BETWEEN ? AND ?
-     ORDER BY e.date DESC`,
+    `WITH RECURSIVE expense_installments AS (
+      SELECT
+        e.id,
+        e.family_id,
+        e.user_id,
+        e.category_id,
+        e.description,
+        e.amount,
+        e.date,
+        e.payment_method,
+        e.is_recurring,
+        e.recurring_type,
+        COALESCE(NULLIF(e.installments, 0), 1) as installments,
+        1 as installment_current,
+        date(e.date) as installment_date,
+        e.created_at,
+        e.updated_at
+      FROM expenses e
+      WHERE e.family_id = ? AND e.user_id = ?
+
+      UNION ALL
+
+      SELECT
+        ei.id,
+        ei.family_id,
+        ei.user_id,
+        ei.category_id,
+        ei.description,
+        ei.amount,
+        ei.date,
+        ei.payment_method,
+        ei.is_recurring,
+        ei.recurring_type,
+        ei.installments,
+        ei.installment_current + 1,
+        date(ei.installment_date, '+1 month'),
+        ei.created_at,
+        ei.updated_at
+      FROM expense_installments ei
+      WHERE ei.installment_current < ei.installments
+    )
+    SELECT
+      ei.id,
+      ei.family_id,
+      ei.user_id,
+      ei.category_id,
+      ei.description,
+      CASE
+        WHEN ei.installments > 1 AND COALESCE(ei.payment_method, 'cash') != 'credit_card' THEN ei.amount / ei.installments
+        ELSE ei.amount
+      END as amount,
+      ei.installment_date as date,
+      ei.payment_method,
+      ei.is_recurring,
+      ei.recurring_type,
+      ei.installments,
+      ei.installment_current,
+      ei.created_at,
+      ei.updated_at,
+      c.name as category_name,
+      u.name as user_name
+    FROM expense_installments ei
+    JOIN categories c ON c.id = ei.category_id
+    JOIN users u ON u.id = ei.user_id
+    WHERE ei.installment_date BETWEEN ? AND ?
+    ORDER BY ei.installment_date DESC, ei.id DESC, ei.installment_current DESC`,
     [familyId, userId, startDate, endDate]
   );
 }
