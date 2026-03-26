@@ -3,10 +3,12 @@ import { run, get, all } from '../database/connection.js';
 import { createAccessToken } from '../middleware/jwt.js';
 
 export async function registerUser(familyId, name, email, password) {
+  const normalizedEmail = email.trim().toLowerCase();
+
   // Verificar se email já existe
   const existingUser = await get(
     'SELECT id FROM users WHERE email = ?',
-    [email]
+    [normalizedEmail]
   );
 
   if (existingUser) {
@@ -19,17 +21,19 @@ export async function registerUser(familyId, name, email, password) {
   // Criar usuário
   const result = await run(
     'INSERT INTO users (family_id, name, email, password, role) VALUES (?, ?, ?, ?, ?)',
-    [familyId, name, email, hashedPassword, 'member']
+    [familyId, name, normalizedEmail, hashedPassword, 'member']
   );
 
   return result.id;
 }
 
 export async function loginUser(email, password) {
+  const normalizedEmail = email.trim().toLowerCase();
+
   // Buscar usuário
   const user = await get(
     'SELECT id, family_id, name, email, role, password FROM users WHERE email = ? AND is_active = 1',
-    [email]
+    [normalizedEmail]
   );
 
   if (!user) {
@@ -101,7 +105,8 @@ export async function updateUser(userId, updates, familyId) {
 }
 
 export async function createFamilyUser(familyId, name, email, password, role = 'member') {
-  const existingUser = await get('SELECT id FROM users WHERE email = ?', [email]);
+  const normalizedEmail = email.trim().toLowerCase();
+  const existingUser = await get('SELECT id FROM users WHERE email = ?', [normalizedEmail]);
   if (existingUser) {
     throw new Error('Email already registered');
   }
@@ -109,7 +114,7 @@ export async function createFamilyUser(familyId, name, email, password, role = '
   const hashedPassword = await bcrypt.hash(password, 10);
   const result = await run(
     'INSERT INTO users (family_id, name, email, password, role) VALUES (?, ?, ?, ?, ?)',
-    [familyId, name, email, hashedPassword, role]
+    [familyId, name, normalizedEmail, hashedPassword, role]
   );
 
   return result.id;

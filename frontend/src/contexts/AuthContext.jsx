@@ -25,7 +25,7 @@ export function AuthProvider({ children }) {
   const login = useCallback(async (email, password) => {
     try {
       setError(null);
-      const response = await authService.login(email, password);
+      const response = await authService.login(email.trim().toLowerCase(), password);
       const { token, user } = response.data;
 
       localStorage.setItem('token', token);
