@@ -324,14 +324,16 @@ export function TransactionsPage() {
             </button>
           </form>
 
-          <button
-            type="submit"
-            form="transaction-form"
-            disabled={saving}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60 self-end"
-          >
-            {saving ? 'Salvando...' : 'Adicionar'}
-          </button>
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              form="transaction-form"
+              disabled={saving}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60"
+            >
+              {saving ? 'Salvando...' : 'Adicionar'}
+            </button>
+          </div>
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
