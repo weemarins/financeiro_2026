@@ -427,12 +427,45 @@ export function CreditCardsPage() {
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
   ];
   const yearOptions = Array.from({ length: 11 }, (_, index) => currentDate.getFullYear() - 5 + index);
-  const filteredTransactions = (selectedCardDetails?.transactions || []).filter((transaction) => {
-    const [year, month] = String(transaction.date || '').split('-').map(Number);
-    return month === selectedMonth + 1 && year === selectedYear;
-  });
+  const formatDate = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+  const normalizedTransactions = React.useMemo(() => {
+    const transactions = selectedCardDetails?.transactions || [];
+
+    return transactions.flatMap((transaction) => {
+      const totalInstallments = Math.max(1, Number(transaction.installments || 1));
+      const totalAmount = Number(transaction.amount || 0);
+      const installmentAmount = totalInstallments > 0 ? totalAmount / totalInstallments : totalAmount;
+      const baseDate = new Date(`${transaction.date}T00:00:00`);
+
+      if (Number.isNaN(baseDate.getTime())) return [];
+
+      return Array.from({ length: totalInstallments }, (_, index) => {
+        const installmentDate = new Date(baseDate);
+        installmentDate.setMonth(installmentDate.getMonth() + index);
+
+        return {
+          ...transaction,
+          installmentNumber: index + 1,
+          totalInstallments,
+          installmentAmount,
+          installmentDate,
+        };
+      });
+    });
+  }, [selectedCardDetails]);
+
+  const filteredTransactions = normalizedTransactions.filter((transaction) => (
+    transaction.installmentDate.getMonth() === selectedMonth
+      && transaction.installmentDate.getFullYear() === selectedYear
+  ));
+
   const filteredBillTotal = filteredTransactions.reduce(
-    (total, transaction) => total + Number(transaction.amount || 0),
+    (total, transaction) => total + Number(transaction.installmentAmount || 0),
     0
   );
   const displayedBill = selectedCardDetails ? filteredBillTotal : 0;
@@ -850,11 +883,11 @@ export function CreditCardsPage() {
                     </thead>
                     <tbody>
                       {filteredTransactions.map((transaction) => (
-                        <tr key={transaction.id} className="border-b last:border-b-0">
-                          <td className="py-3">{transaction.date}</td>
+                        <tr key={`${transaction.id}-${transaction.installmentNumber}`} className="border-b last:border-b-0">
+                          <td className="py-3">{formatDate(transaction.installmentDate)}</td>
                           <td className="py-3">{transaction.description}</td>
-                          <td className="py-3">{transaction.installments || 1}x</td>
-                          <td className="py-3 font-semibold">{currencyFormatter.format(Number(transaction.amount || 0))}</td>
+                          <td className="py-3">{transaction.installmentNumber}/{transaction.totalInstallments}</td>
+                          <td className="py-3 font-semibold">{currencyFormatter.format(Number(transaction.installmentAmount || 0))}</td>
                         </tr>
                       ))}
                     </tbody>
