@@ -1,11 +1,36 @@
 import axios from 'axios';
 
+const ensureApiPath = (url) => {
+  const normalized = url.replace(/\/+$/, '');
+  return normalized.endsWith('/api') ? normalized : `${normalized}/api`;
+};
+
 const resolveApiBaseUrl = () => {
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
+  const configuredUrl = import.meta.env.VITE_API_URL?.trim();
+
+  if (!configuredUrl) {
+    return '/api';
   }
 
-  return '/api';
+  try {
+    const parsedUrl = new URL(configuredUrl);
+    const hostname = parsedUrl.hostname;
+    const isLocalhostConfig = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0';
+
+    if (isLocalhostConfig && typeof window !== 'undefined') {
+      const runtimeUrl = new URL(window.location.origin);
+      parsedUrl.protocol = runtimeUrl.protocol;
+      parsedUrl.hostname = runtimeUrl.hostname;
+
+      if (!parsedUrl.port && runtimeUrl.port) {
+        parsedUrl.port = runtimeUrl.port;
+      }
+    }
+
+    return ensureApiPath(parsedUrl.toString());
+  } catch {
+    return configuredUrl.startsWith('/') ? ensureApiPath(configuredUrl) : '/api';
+  }
 };
 
 const API_BASE_URL = resolveApiBaseUrl();
