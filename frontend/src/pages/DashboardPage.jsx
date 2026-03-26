@@ -152,7 +152,7 @@ export function DashboardPage() {
             </div>
           </div>
 
-          <Link to="/transactions" className="block bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow">
+          <Link to="/transactions?type=income" className="block bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm font-medium">Receitas</p>
@@ -166,7 +166,7 @@ export function DashboardPage() {
             </div>
           </Link>
 
-          <Link to="/transactions" className="block bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow">
+          <Link to="/transactions?type=expense" className="block bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm font-medium">Despesas</p>
@@ -180,7 +180,7 @@ export function DashboardPage() {
             </div>
           </Link>
 
-          <Link to="/transactions" className="block bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow">
+          <Link to="/investments" className="block bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm font-medium">Investimentos</p>

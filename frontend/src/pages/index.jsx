@@ -1,4 +1,5 @@
 import React from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { MainLayout } from '../components/Layout.jsx';
 import { authService, creditCardService, goalsService, investmentService, transactionService } from '../services/index.js';
 import { useAuth } from '../contexts/AuthContext.jsx';
@@ -7,7 +8,9 @@ import { DashboardPage as Dashboard } from './DashboardPage.jsx';
 export { Dashboard as DashboardPage };
 
 export function TransactionsPage() {
-  const [transactionType, setTransactionType] = React.useState('expense');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialType = searchParams.get('type') === 'income' ? 'income' : 'expense';
+  const [transactionType, setTransactionType] = React.useState(initialType);
   const [categories, setCategories] = React.useState([]);
   const [transactions, setTransactions] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
@@ -64,6 +67,13 @@ export function TransactionsPage() {
   React.useEffect(() => {
     setFormData((prev) => ({ ...prev, categoryId: '' }));
   }, [transactionType]);
+
+  React.useEffect(() => {
+    const typeFromUrl = searchParams.get('type') === 'income' ? 'income' : 'expense';
+    if (typeFromUrl !== transactionType) {
+      setTransactionType(typeFromUrl);
+    }
+  }, [searchParams, transactionType]);
 
   const currencyFormatter = new Intl.NumberFormat('pt-BR', {
     style: 'currency',
@@ -197,7 +207,10 @@ export function TransactionsPage() {
         <div className="bg-white rounded-lg shadow p-6 space-y-4">
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setTransactionType('expense')}
+              onClick={() => {
+                setTransactionType('expense');
+                setSearchParams({ type: 'expense' });
+              }}
               className={`px-4 py-2 rounded-lg font-medium ${
                 transactionType === 'expense' ? 'bg-red-600 text-white' : 'bg-gray-200 text-gray-700'
               }`}
@@ -205,7 +218,10 @@ export function TransactionsPage() {
               Despesas
             </button>
             <button
-              onClick={() => setTransactionType('income')}
+              onClick={() => {
+                setTransactionType('income');
+                setSearchParams({ type: 'income' });
+              }}
               className={`px-4 py-2 rounded-lg font-medium ${
                 transactionType === 'income' ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700'
               }`}
@@ -312,7 +328,7 @@ export function TransactionsPage() {
             type="submit"
             form="transaction-form"
             disabled={saving}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60 self-start"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60 self-end"
           >
             {saving ? 'Salvando...' : 'Adicionar'}
           </button>
