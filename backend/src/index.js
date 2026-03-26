@@ -24,6 +24,24 @@ const CORS_ORIGIN = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',')
 
 // Inicializar Express
 const app = express();
+const TRUST_PROXY = process.env.TRUST_PROXY;
+
+if (TRUST_PROXY) {
+  const normalizedTrustProxy = TRUST_PROXY.toLowerCase();
+
+  if (normalizedTrustProxy === 'true') {
+    app.set('trust proxy', true);
+  } else if (normalizedTrustProxy === 'false') {
+    app.set('trust proxy', false);
+  } else if (!Number.isNaN(Number(TRUST_PROXY))) {
+    app.set('trust proxy', Number(TRUST_PROXY));
+  } else {
+    app.set('trust proxy', TRUST_PROXY);
+  }
+} else if (process.env.NODE_ENV === 'production') {
+  // Em produção usamos proxy reverso (nginx), então confiamos no primeiro hop.
+  app.set('trust proxy', 1);
+}
 
 // Middleware
 app.use(cors({
