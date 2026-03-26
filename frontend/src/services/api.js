@@ -17,14 +17,8 @@ const resolveApiBaseUrl = () => {
     const hostname = parsedUrl.hostname;
     const isLocalhostConfig = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0';
 
-    if (isLocalhostConfig && typeof window !== 'undefined') {
-      const runtimeUrl = new URL(window.location.origin);
-      parsedUrl.protocol = runtimeUrl.protocol;
-      parsedUrl.hostname = runtimeUrl.hostname;
-
-      if (!parsedUrl.port && runtimeUrl.port) {
-        parsedUrl.port = runtimeUrl.port;
-      }
+    if (isLocalhostConfig) {
+      return '/api';
     }
 
     return ensureApiPath(parsedUrl.toString());
