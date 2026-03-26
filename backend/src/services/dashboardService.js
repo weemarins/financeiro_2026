@@ -1,17 +1,18 @@
 import { get, all } from '../database/connection.js';
 
-const invoiceDueDateExpression = `
+function buildInvoiceDueDateExpression(dateField) {
+  return `
 CASE
-  WHEN cc.closing_day IS NULL OR cc.due_day IS NULL THEN ct.date
+  WHEN cc.closing_day IS NULL OR cc.due_day IS NULL THEN ${dateField}
   ELSE
     CASE
       WHEN cc.due_day > cc.closing_day THEN
         date(
           CASE
-            WHEN CAST(strftime('%d', ct.date) AS INTEGER) <= cc.closing_day THEN
-              date(date(ct.date, 'start of month'), '+' || (cc.closing_day - 1) || ' days')
+            WHEN CAST(strftime('%d', ${dateField}) AS INTEGER) <= cc.closing_day THEN
+              date(date(${dateField}, 'start of month'), '+' || (cc.closing_day - 1) || ' days')
             ELSE
-              date(date(ct.date, 'start of month'), '+1 month', '+' || (cc.closing_day - 1) || ' days')
+              date(date(${dateField}, 'start of month'), '+1 month', '+' || (cc.closing_day - 1) || ' days')
           END,
           'start of month',
           '+' || (cc.due_day - 1) || ' days'
@@ -19,10 +20,10 @@ CASE
       ELSE
         date(
           CASE
-            WHEN CAST(strftime('%d', ct.date) AS INTEGER) <= cc.closing_day THEN
-              date(date(ct.date, 'start of month'), '+' || (cc.closing_day - 1) || ' days')
+            WHEN CAST(strftime('%d', ${dateField}) AS INTEGER) <= cc.closing_day THEN
+              date(date(${dateField}, 'start of month'), '+' || (cc.closing_day - 1) || ' days')
             ELSE
-              date(date(ct.date, 'start of month'), '+1 month', '+' || (cc.closing_day - 1) || ' days')
+              date(date(${dateField}, 'start of month'), '+1 month', '+' || (cc.closing_day - 1) || ' days')
           END,
           'start of month',
           '+1 month',
@@ -31,6 +32,9 @@ CASE
     END
 END
 `;
+}
+
+const invoiceDueDateExpression = buildInvoiceDueDateExpression('ct.installment_date');
 
 export async function getDashboardData(familyId, userId, startDate, endDate) {
   const expensesInstallmentsCte = `
@@ -62,6 +66,32 @@ WITH RECURSIVE expense_installments AS (
     date(ei.installment_date, '+1 month')
   FROM expense_installments ei
   WHERE ei.installment_current < ei.installments
+),
+card_installments AS (
+  SELECT
+    ct.id,
+    ct.credit_card_id,
+    ct.expense_id,
+    ct.description,
+    ct.amount,
+    COALESCE(NULLIF(ct.installments, 0), 1) as installments,
+    1 as installment_current,
+    date(ct.date) as installment_date
+  FROM card_transactions ct
+
+  UNION ALL
+
+  SELECT
+    ci.id,
+    ci.credit_card_id,
+    ci.expense_id,
+    ci.description,
+    ci.amount,
+    ci.installments,
+    ci.installment_current + 1,
+    date(ci.installment_date, '+1 month')
+  FROM card_installments ci
+  WHERE ci.installment_current < ci.installments
 )
 `;
 
@@ -86,8 +116,8 @@ WITH RECURSIVE expense_installments AS (
         WHERE ei.installment_date BETWEEN ? AND ?
       ), 0) +
       COALESCE((
-        SELECT SUM(ct.amount)
-        FROM card_transactions ct
+        SELECT SUM(ct.amount / ct.installments)
+        FROM card_installments ct
         JOIN credit_cards cc ON cc.id = ct.credit_card_id
         WHERE cc.family_id = ?
           AND cc.user_id = ?
@@ -134,8 +164,8 @@ WITH RECURSIVE expense_installments AS (
 
       SELECT
         COALESCE(c.name, 'Cartão de crédito') as name,
-        ct.amount as total
-      FROM card_transactions ct
+        ct.amount / ct.installments as total
+      FROM card_installments ct
       JOIN credit_cards cc ON cc.id = ct.credit_card_id
       LEFT JOIN expenses e ON e.id = ct.expense_id
       LEFT JOIN categories c ON c.id = e.category_id
@@ -159,14 +189,16 @@ WITH RECURSIVE expense_installments AS (
 
   // Cartões de crédito
   const creditCards = await all(
-    `SELECT
+    `${expensesInstallmentsCte}
+     SELECT
       cc.id,
       cc.name,
       cc."limit" as "limit",
       (
-        SELECT SUM(ct.amount)
-        FROM card_transactions ct
+        SELECT SUM(ct.amount / ct.installments)
+        FROM card_installments ct
         WHERE ct.credit_card_id = cc.id
+          AND ${invoiceDueDateExpression} >= date('now')
       ) as current_usage
      FROM credit_cards cc
      WHERE cc.family_id = ? AND cc.user_id = ? AND cc.is_active = 1`,

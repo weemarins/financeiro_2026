@@ -1,5 +1,41 @@
 import { run, get, all } from '../database/connection.js';
 
+function buildInvoiceDueDateExpression(dateField) {
+  return `
+CASE
+  WHEN cc.closing_day IS NULL OR cc.due_day IS NULL THEN ${dateField}
+  ELSE
+    CASE
+      WHEN cc.due_day > cc.closing_day THEN
+        date(
+          CASE
+            WHEN CAST(strftime('%d', ${dateField}) AS INTEGER) <= cc.closing_day THEN
+              date(date(${dateField}, 'start of month'), '+' || (cc.closing_day - 1) || ' days')
+            ELSE
+              date(date(${dateField}, 'start of month'), '+1 month', '+' || (cc.closing_day - 1) || ' days')
+          END,
+          'start of month',
+          '+' || (cc.due_day - 1) || ' days'
+        )
+      ELSE
+        date(
+          CASE
+            WHEN CAST(strftime('%d', ${dateField}) AS INTEGER) <= cc.closing_day THEN
+              date(date(${dateField}, 'start of month'), '+' || (cc.closing_day - 1) || ' days')
+            ELSE
+              date(date(${dateField}, 'start of month'), '+1 month', '+' || (cc.closing_day - 1) || ' days')
+          END,
+          'start of month',
+          '+1 month',
+          '+' || (cc.due_day - 1) || ' days'
+        )
+    END
+END
+`;
+}
+
+const invoiceDueDateExpression = buildInvoiceDueDateExpression('ci.installment_date');
+
 export async function createCreditCard(familyId, userId, name, cardNumber, bank, limit, closingDay, dueDay) {
   const result = await run(
     `INSERT INTO credit_cards (family_id, user_id, name, card_number, bank, "limit", closing_day, due_day) 
@@ -37,23 +73,73 @@ export async function getCreditCardDetails(cardId, familyId, userId) {
     [cardId]
   );
 
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
-
   const currentBill = await get(
-    `SELECT SUM(amount) as total FROM card_transactions
-     WHERE credit_card_id = ?
-       AND date >= ?
-       AND date <= ?`,
-    [cardId, monthStart, monthEnd]
+    `WITH RECURSIVE card_installments AS (
+      SELECT
+        ct.id,
+        ct.credit_card_id,
+        ct.amount,
+        COALESCE(NULLIF(ct.installments, 0), 1) as installments,
+        1 as installment_current,
+        date(ct.date) as installment_date
+      FROM card_transactions ct
+      WHERE ct.credit_card_id = ?
+
+      UNION ALL
+
+      SELECT
+        ci.id,
+        ci.credit_card_id,
+        ci.amount,
+        ci.installments,
+        ci.installment_current + 1,
+        date(ci.installment_date, '+1 month')
+      FROM card_installments ci
+      WHERE ci.installment_current < ci.installments
+    )
+    SELECT COALESCE(SUM(ci.amount / ci.installments), 0) as total
+    FROM card_installments ci
+    JOIN credit_cards cc ON cc.id = ci.credit_card_id
+    WHERE ${invoiceDueDateExpression} BETWEEN date('now', 'start of month') AND date('now', 'start of month', '+1 month', '-1 day')`,
+    [cardId]
+  );
+
+  const outstandingUsage = await get(
+    `WITH RECURSIVE card_installments AS (
+      SELECT
+        ct.id,
+        ct.credit_card_id,
+        ct.amount,
+        COALESCE(NULLIF(ct.installments, 0), 1) as installments,
+        1 as installment_current,
+        date(ct.date) as installment_date
+      FROM card_transactions ct
+      WHERE ct.credit_card_id = ?
+
+      UNION ALL
+
+      SELECT
+        ci.id,
+        ci.credit_card_id,
+        ci.amount,
+        ci.installments,
+        ci.installment_current + 1,
+        date(ci.installment_date, '+1 month')
+      FROM card_installments ci
+      WHERE ci.installment_current < ci.installments
+    )
+    SELECT COALESCE(SUM(ci.amount / ci.installments), 0) as total
+    FROM card_installments ci
+    JOIN credit_cards cc ON cc.id = ci.credit_card_id
+    WHERE ${invoiceDueDateExpression} >= date('now')`,
+    [cardId]
   );
 
   return {
     ...card,
     transactions,
     currentBill: currentBill?.total || 0,
-    availableLimit: card.limit - (currentBill?.total || 0)
+    availableLimit: card.limit - (outstandingUsage?.total || 0)
   };
 }
 
