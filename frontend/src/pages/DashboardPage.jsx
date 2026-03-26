@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { dashboardService } from '../services/index.js';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { TrendingUp, TrendingDown, Target, CreditCard } from 'lucide-react';
@@ -151,7 +152,7 @@ export function DashboardPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
+          <Link to="/transactions" className="block bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm font-medium">Receitas</p>
@@ -163,9 +164,9 @@ export function DashboardPage() {
                 <TrendingUp className="text-green-600" />
               </div>
             </div>
-          </div>
+          </Link>
 
-          <div className="bg-white rounded-lg shadow p-6">
+          <Link to="/transactions" className="block bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm font-medium">Despesas</p>
@@ -177,9 +178,9 @@ export function DashboardPage() {
                 <TrendingDown className="text-red-600" />
               </div>
             </div>
-          </div>
+          </Link>
 
-          <div className="bg-white rounded-lg shadow p-6">
+          <Link to="/transactions" className="block bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm font-medium">Investimentos</p>
@@ -191,7 +192,7 @@ export function DashboardPage() {
                 <Target className="text-blue-600" />
               </div>
             </div>
-          </div>
+          </Link>
         </div>
 
         {/* Charts */}
