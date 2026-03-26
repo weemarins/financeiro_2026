@@ -220,7 +220,7 @@ export function TransactionsPage() {
             </div>
           )}
 
-          <form onSubmit={handleCreateTransaction} className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+          <form id="transaction-form" onSubmit={handleCreateTransaction} className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
             <div className="md:col-span-2">
               <label className="text-sm font-medium text-gray-700">Descrição</label>
               <input
@@ -285,13 +285,6 @@ export function TransactionsPage() {
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={saving}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60"
-            >
-              {saving ? 'Salvando...' : 'Adicionar'}
-            </button>
           </form>
 
           <form onSubmit={handleCreateCategory} className="flex flex-col md:flex-row md:items-end gap-3 border-t pt-4">
@@ -314,6 +307,15 @@ export function TransactionsPage() {
               Criar categoria
             </button>
           </form>
+
+          <button
+            type="submit"
+            form="transaction-form"
+            disabled={saving}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60 self-start"
+          >
+            {saving ? 'Salvando...' : 'Adicionar'}
+          </button>
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
