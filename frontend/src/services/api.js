@@ -34,6 +34,7 @@ const resolveApiBaseUrl = () => {
 };
 
 const API_BASE_URL = resolveApiBaseUrl();
+const ABSOLUTE_URL_REGEX = /^https?:\/\//i;
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -45,6 +46,15 @@ const api = axios.create({
 // Interceptor para adicionar token em requisições
 api.interceptors.request.use(
   (config) => {
+    const requestUrl = config.url ?? '';
+    const baseUrl = config.baseURL ?? API_BASE_URL;
+    const baseIncludesApiPath = /\/api\/?$/.test(baseUrl);
+    const isAbsoluteUrl = ABSOLUTE_URL_REGEX.test(requestUrl);
+
+    if (!isAbsoluteUrl && requestUrl.startsWith('/') && !requestUrl.startsWith('/api') && !baseIncludesApiPath) {
+      config.url = `/api${requestUrl}`;
+    }
+
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
