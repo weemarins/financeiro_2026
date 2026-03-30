@@ -470,7 +470,7 @@ export function CreditCardsPage() {
   );
   const displayedBill = selectedCardDetails ? filteredBillTotal : 0;
   const displayedAvailableLimit = selectedCardDetails
-    ? Number(selectedCardDetails.limit || 0) - displayedBill
+    ? Number(selectedCardDetails.availableLimit ?? (Number(selectedCardDetails.limit || 0) - displayedBill))
     : 0;
 
   const clearMessages = () => {
