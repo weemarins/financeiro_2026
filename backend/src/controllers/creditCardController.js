@@ -60,7 +60,7 @@ export async function addTransaction(req, res) {
     const { cardId } = req.params;
     const familyId = req.user.familyId;
     const userId = req.user.userId;
-    const { expenseId, description, amount, date, installments } = req.body;
+    const { expenseId, description, amount, date, installments, isSubscription } = req.body;
 
     if (!description || !amount || !date) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -74,7 +74,8 @@ export async function addTransaction(req, res) {
       description,
       amount,
       date,
-      installments
+      installments,
+      Boolean(isSubscription)
     );
 
     res.status(201).json({ id: transactionId, message: 'Transaction added successfully' });
@@ -96,6 +97,23 @@ export async function updateCard(req, res) {
     }
 
     res.json({ message: 'Card updated successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+}
+
+export async function removeTransaction(req, res) {
+  try {
+    const { cardId, transactionId } = req.params;
+    const familyId = req.user.familyId;
+    const userId = req.user.userId;
+
+    const success = await creditCardService.removeCardTransaction(cardId, transactionId, familyId, userId);
+    if (!success) {
+      return res.status(404).json({ error: 'Transaction not found' });
+    }
+
+    res.json({ message: 'Transaction removed successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

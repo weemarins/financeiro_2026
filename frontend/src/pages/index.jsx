@@ -400,6 +400,7 @@ export function CreditCardsPage() {
   const [savingTransaction, setSavingTransaction] = React.useState(false);
   const [error, setError] = React.useState('');
   const [success, setSuccess] = React.useState('');
+  const [editingCardId, setEditingCardId] = React.useState('');
   const [cardForm, setCardForm] = React.useState({
     name: '',
     cardNumber: '',
@@ -413,6 +414,7 @@ export function CreditCardsPage() {
     amount: '',
     date: new Date().toISOString().slice(0, 10),
     installments: 1,
+    isSubscription: false,
   });
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = React.useState(currentDate.getMonth());
@@ -435,14 +437,48 @@ export function CreditCardsPage() {
   };
   const normalizedTransactions = React.useMemo(() => {
     const transactions = selectedCardDetails?.transactions || [];
+    const minimumYear = Math.min(...yearOptions);
+    const maximumYear = Math.max(...yearOptions);
+    const displayStartDate = new Date(minimumYear, 0, 1);
+    const displayEndDate = new Date(maximumYear, 11, 31);
 
     return transactions.flatMap((transaction) => {
-      const totalInstallments = Math.max(1, Number(transaction.installments || 1));
       const totalAmount = Number(transaction.amount || 0);
-      const installmentAmount = totalInstallments > 0 ? totalAmount / totalInstallments : totalAmount;
       const baseDate = new Date(`${transaction.date}T00:00:00`);
 
       if (Number.isNaN(baseDate.getTime())) return [];
+
+      if (transaction.is_subscription && transaction.subscription_active) {
+        const firstOccurrence = new Date(baseDate > displayStartDate ? baseDate : displayStartDate);
+        firstOccurrence.setDate(1);
+
+        const lastOccurrence = new Date(displayEndDate);
+        lastOccurrence.setDate(1);
+
+        const months = Math.max(
+          1,
+          ((lastOccurrence.getFullYear() - firstOccurrence.getFullYear()) * 12)
+            + (lastOccurrence.getMonth() - firstOccurrence.getMonth())
+            + 1
+        );
+
+        return Array.from({ length: months }, (_, index) => {
+          const installmentDate = new Date(firstOccurrence);
+          installmentDate.setMonth(installmentDate.getMonth() + index);
+
+          return {
+            ...transaction,
+            installmentNumber: index + 1,
+            totalInstallments: '∞',
+            installmentAmount: totalAmount,
+            installmentDate,
+            isSubscription: true,
+          };
+        });
+      }
+
+      const totalInstallments = Math.max(1, Number(transaction.installments || 1));
+      const installmentAmount = totalInstallments > 0 ? totalAmount / totalInstallments : totalAmount;
 
       return Array.from({ length: totalInstallments }, (_, index) => {
         const installmentDate = new Date(baseDate);
@@ -454,10 +490,11 @@ export function CreditCardsPage() {
           totalInstallments,
           installmentAmount,
           installmentDate,
+          isSubscription: false,
         };
       });
     });
-  }, [selectedCardDetails]);
+  }, [selectedCardDetails, yearOptions]);
 
   const filteredTransactions = normalizedTransactions.filter((transaction) => (
     transaction.installmentDate.getMonth() === selectedMonth
@@ -470,7 +507,7 @@ export function CreditCardsPage() {
   );
   const displayedBill = selectedCardDetails ? filteredBillTotal : 0;
   const displayedAvailableLimit = selectedCardDetails
-    ? Number(selectedCardDetails.availableLimit ?? (Number(selectedCardDetails.limit || 0) - displayedBill))
+    ? Number(selectedCardDetails.limit || 0) - displayedBill
     : 0;
 
   const clearMessages = () => {
@@ -525,7 +562,7 @@ export function CreditCardsPage() {
     loadCardDetails(selectedCardId);
   }, [selectedCardId, loadCardDetails]);
 
-  const handleCreateCard = async (event) => {
+  const handleSaveCard = async (event) => {
     event.preventDefault();
     clearMessages();
 
@@ -545,16 +582,36 @@ export function CreditCardsPage() {
 
     try {
       setSavingCard(true);
-      const createResponse = await creditCardService.createCard(
-        payload.name,
-        payload.cardNumber || null,
-        payload.bank,
-        payload.limit,
-        payload.closingDay || null,
-        payload.dueDay || null
-      );
 
-      setSuccess('Cartão criado com sucesso!');
+      if (editingCardId) {
+        await creditCardService.updateCard(editingCardId, {
+          name: payload.name,
+          cardNumber: payload.cardNumber || null,
+          bank: payload.bank,
+          limit: payload.limit,
+          closingDay: payload.closingDay || null,
+          dueDay: payload.dueDay || null,
+        });
+        setSuccess('Cartão atualizado com sucesso!');
+        await loadCards();
+        await loadCardDetails(editingCardId);
+      } else {
+        const createResponse = await creditCardService.createCard(
+          payload.name,
+          payload.cardNumber || null,
+          payload.bank,
+          payload.limit,
+          payload.closingDay || null,
+          payload.dueDay || null
+        );
+
+        setSuccess('Cartão criado com sucesso!');
+        await loadCards();
+        const newCardId = createResponse?.data?.id;
+        if (newCardId) setSelectedCardId(String(newCardId));
+      }
+
+      setEditingCardId('');
       setCardForm({
         name: '',
         cardNumber: '',
@@ -563,15 +620,42 @@ export function CreditCardsPage() {
         closingDay: '',
         dueDay: '',
       });
-      await loadCards();
-      const newCardId = createResponse?.data?.id;
-      if (newCardId) setSelectedCardId(String(newCardId));
     } catch (err) {
       console.error(err);
-      setError('Não foi possível criar o cartão.');
+      setError(editingCardId ? 'Não foi possível atualizar o cartão.' : 'Não foi possível criar o cartão.');
     } finally {
       setSavingCard(false);
     }
+  };
+
+  const handleStartEditCard = () => {
+    clearMessages();
+    if (!selectedCardDetails) {
+      setError('Selecione um cartão para editar.');
+      return;
+    }
+
+    setEditingCardId(String(selectedCardDetails.id));
+    setCardForm({
+      name: selectedCardDetails.name || '',
+      cardNumber: selectedCardDetails.card_number || '',
+      bank: selectedCardDetails.bank || '',
+      limit: selectedCardDetails.limit ?? '',
+      closingDay: selectedCardDetails.closing_day ?? '',
+      dueDay: selectedCardDetails.due_day ?? '',
+    });
+  };
+
+  const handleCancelEditCard = () => {
+    setEditingCardId('');
+    setCardForm({
+      name: '',
+      cardNumber: '',
+      bank: '',
+      limit: '',
+      closingDay: '',
+      dueDay: '',
+    });
   };
 
   const handleAddCardTransaction = async (event) => {
@@ -587,7 +671,8 @@ export function CreditCardsPage() {
       description: transactionForm.description.trim(),
       amount: Number(transactionForm.amount),
       date: transactionForm.date,
-      installments: Number(transactionForm.installments || 1),
+      installments: transactionForm.isSubscription ? 1 : Number(transactionForm.installments || 1),
+      isSubscription: Boolean(transactionForm.isSubscription),
     };
 
     if (!payload.description || !payload.amount || !payload.date) {
@@ -603,7 +688,8 @@ export function CreditCardsPage() {
         payload.description,
         payload.amount,
         payload.date,
-        payload.installments
+        payload.installments,
+        payload.isSubscription
       );
       setSuccess('Compra lançada na fatura com sucesso!');
       setTransactionForm({
@@ -611,6 +697,7 @@ export function CreditCardsPage() {
         amount: '',
         date: new Date().toISOString().slice(0, 10),
         installments: 1,
+        isSubscription: false,
       });
       await loadCardDetails(selectedCardId);
     } catch (err) {
@@ -635,6 +722,21 @@ export function CreditCardsPage() {
     }
   };
 
+  const handleRemoveCardTransaction = async (transactionId) => {
+    clearMessages();
+
+    if (!selectedCardId || !transactionId) return;
+
+    try {
+      await creditCardService.removeTransaction(selectedCardId, transactionId);
+      setSuccess('Compra removida com sucesso.');
+      await loadCardDetails(selectedCardId);
+    } catch (err) {
+      console.error(err);
+      setError('Não foi possível remover a compra.');
+    }
+  };
+
   return (
     <MainLayout>
       <div className="space-y-6">
@@ -652,8 +754,8 @@ export function CreditCardsPage() {
 
         <div className="grid lg:grid-cols-3 gap-6">
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">Novo cartão</h2>
-            <form onSubmit={handleCreateCard} className="space-y-3">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">{editingCardId ? 'Editar cartão' : 'Novo cartão'}</h2>
+            <form onSubmit={handleSaveCard} className="space-y-3">
               <div>
                 <label className="block text-sm text-gray-700">
                   Nome do cartão
@@ -727,8 +829,17 @@ export function CreditCardsPage() {
                 disabled={savingCard}
                 className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 disabled:opacity-60"
               >
-                {savingCard ? 'Salvando...' : 'Criar cartão'}
+                {savingCard ? 'Salvando...' : (editingCardId ? 'Salvar alterações' : 'Criar cartão')}
               </button>
+              {editingCardId && (
+                <button
+                  type="button"
+                  onClick={handleCancelEditCard}
+                  className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                >
+                  Cancelar edição
+                </button>
+              )}
             </form>
           </div>
 
@@ -750,14 +861,24 @@ export function CreditCardsPage() {
                     ))}
                   </select>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleDeactivateCard}
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleStartEditCard}
+                    disabled={!selectedCardId}
+                    className="px-4 py-2 text-blue-700 border border-blue-300 rounded-lg hover:bg-blue-50 disabled:opacity-50"
+                  >
+                    Editar cartão
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDeactivateCard}
                   disabled={!selectedCardId}
                   className="px-4 py-2 text-red-600 border border-red-300 rounded-lg hover:bg-red-50 disabled:opacity-50"
                 >
                   Desativar cartão
-                </button>
+                  </button>
+                </div>
               </div>
 
               {loading ? (
@@ -813,7 +934,8 @@ export function CreditCardsPage() {
                     max="36"
                     value={transactionForm.installments}
                     onChange={(event) => setTransactionForm((prev) => ({ ...prev, installments: event.target.value }))}
-                    className="w-full mt-1 border rounded-lg px-3 py-2"
+                    disabled={transactionForm.isSubscription}
+                    className="w-full mt-1 border rounded-lg px-3 py-2 disabled:bg-gray-100"
                   />
                 </label>
                 <label className="text-sm text-gray-700">
@@ -825,7 +947,16 @@ export function CreditCardsPage() {
                     className="w-full mt-1 border rounded-lg px-3 py-2"
                   />
                 </label>
-                <div className="md:col-span-3 flex items-end">
+                <label className="text-sm text-gray-700 md:col-span-2 flex items-center gap-2 mt-2">
+                  <input
+                    type="checkbox"
+                    checked={transactionForm.isSubscription}
+                    onChange={(event) => setTransactionForm((prev) => ({ ...prev, isSubscription: event.target.checked }))}
+                    className="h-4 w-4"
+                  />
+                  Marcar como assinatura (recorrente mensal até remover)
+                </label>
+                <div className="md:col-span-2 flex items-end">
                   <button
                     type="submit"
                     disabled={savingTransaction || !selectedCardId}
@@ -879,6 +1010,7 @@ export function CreditCardsPage() {
                         <th className="py-2 text-sm text-gray-500">Descrição</th>
                         <th className="py-2 text-sm text-gray-500">Parcelas</th>
                         <th className="py-2 text-sm text-gray-500">Valor</th>
+                        <th className="py-2 text-sm text-gray-500">Ações</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -886,8 +1018,17 @@ export function CreditCardsPage() {
                         <tr key={`${transaction.id}-${transaction.installmentNumber}`} className="border-b last:border-b-0">
                           <td className="py-3">{formatDate(transaction.installmentDate)}</td>
                           <td className="py-3">{transaction.description}</td>
-                          <td className="py-3">{transaction.installmentNumber}/{transaction.totalInstallments}</td>
+                          <td className="py-3">{transaction.isSubscription ? 'Assinatura mensal' : `${transaction.installmentNumber}/${transaction.totalInstallments}`}</td>
                           <td className="py-3 font-semibold">{currencyFormatter.format(Number(transaction.installmentAmount || 0))}</td>
+                          <td className="py-3">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveCardTransaction(transaction.id)}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              Remover
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -1273,6 +1414,15 @@ export function InvestmentsPage() {
               >
                 {saving ? 'Salvando...' : 'Cadastrar investimento'}
               </button>
+              {editingCardId && (
+                <button
+                  type="button"
+                  onClick={handleCancelEditCard}
+                  className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                >
+                  Cancelar edição
+                </button>
+              )}
             </form>
           </div>
         </div>
@@ -1424,6 +1574,15 @@ export function InvestmentsPage() {
               >
                 Adicionar aporte
               </button>
+              {editingCardId && (
+                <button
+                  type="button"
+                  onClick={handleCancelEditCard}
+                  className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                >
+                  Cancelar edição
+                </button>
+              )}
             </form>
 
             <div>
@@ -1822,6 +1981,15 @@ export function GoalsPage() {
               >
                 {saving ? 'Salvando...' : 'Criar meta'}
               </button>
+              {editingCardId && (
+                <button
+                  type="button"
+                  onClick={handleCancelEditCard}
+                  className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                >
+                  Cancelar edição
+                </button>
+              )}
             </form>
           </div>
 
@@ -1969,6 +2137,15 @@ export function GoalsPage() {
               >
                 Criar reserva
               </button>
+              {editingCardId && (
+                <button
+                  type="button"
+                  onClick={handleCancelEditCard}
+                  className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                >
+                  Cancelar edição
+                </button>
+              )}
             </form>
           ) : (
             <>
