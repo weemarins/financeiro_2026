@@ -49,6 +49,8 @@ export function initializeDatabase() {
 
 async function runDatabaseMigrations(db) {
   await ensureColumnExists(db, 'investments', 'expected_annual_return', 'DECIMAL(5, 2)');
+  await ensureColumnExists(db, 'card_transactions', 'is_subscription', 'BOOLEAN DEFAULT 0');
+  await ensureColumnExists(db, 'card_transactions', 'subscription_active', 'BOOLEAN DEFAULT 0');
 }
 
 function ensureColumnExists(db, tableName, columnName, columnDefinition) {

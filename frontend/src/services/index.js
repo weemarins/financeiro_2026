@@ -85,8 +85,18 @@ export const creditCardService = {
   getCardDetails: (id) =>
     api.get(`/credit-cards/cards/${id}`),
 
-  addTransaction: (cardId, expenseId, description, amount, date, installments) =>
-    api.post(`/credit-cards/cards/${cardId}/transactions`, { expenseId, description, amount, date, installments }),
+  addTransaction: (cardId, expenseId, description, amount, date, installments, isSubscription) =>
+    api.post(`/credit-cards/cards/${cardId}/transactions`, {
+      expenseId,
+      description,
+      amount,
+      date,
+      installments,
+      isSubscription,
+    }),
+
+  removeTransaction: (cardId, transactionId) =>
+    api.delete(`/credit-cards/cards/${cardId}/transactions/${transactionId}`),
 
   updateCard: (id, updates) =>
     api.put(`/credit-cards/cards/${id}`, updates),
