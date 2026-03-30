@@ -104,6 +104,8 @@ CREATE TABLE IF NOT EXISTS card_transactions (
   amount DECIMAL(12, 2) NOT NULL,
   date DATE NOT NULL,
   installments INTEGER DEFAULT 1,
+  is_subscription BOOLEAN DEFAULT 0,
+  subscription_active BOOLEAN DEFAULT 0,
   installment_current INTEGER DEFAULT 1,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (credit_card_id) REFERENCES credit_cards(id) ON DELETE CASCADE,
