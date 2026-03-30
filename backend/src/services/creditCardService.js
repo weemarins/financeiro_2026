@@ -143,7 +143,17 @@ export async function getCreditCardDetails(cardId, familyId, userId) {
   };
 }
 
-export async function addCardTransaction(cardId, familyId, userId, expenseId, description, amount, date, installments = 1) {
+export async function addCardTransaction(
+  cardId,
+  familyId,
+  userId,
+  expenseId,
+  description,
+  amount,
+  date,
+  installments = 1,
+  isSubscription = false
+) {
   const card = await get(
     'SELECT id FROM credit_cards WHERE id = ? AND family_id = ? AND user_id = ?',
     [cardId, familyId, userId]
@@ -163,19 +173,46 @@ export async function addCardTransaction(cardId, familyId, userId, expenseId, de
   }
 
   const result = await run(
-    `INSERT INTO card_transactions (credit_card_id, expense_id, description, amount, date, installments) 
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [cardId, expenseId, description, amount, date, installments]
+    `INSERT INTO card_transactions (
+      credit_card_id,
+      expense_id,
+      description,
+      amount,
+      date,
+      installments,
+      is_subscription,
+      subscription_active
+    )
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [cardId, expenseId, description, amount, date, installments, isSubscription ? 1 : 0, isSubscription ? 1 : 0]
   );
   return result.id;
 }
 
 export async function updateCreditCard(cardId, familyId, userId, updates) {
-  const { name, limit, closingDay, dueDay } = updates;
+  const { name, cardNumber, bank, limit, closingDay, dueDay } = updates;
   const result = await run(
-    'UPDATE credit_cards SET name = ?, "limit" = ?, closing_day = ?, due_day = ? WHERE id = ? AND family_id = ? AND user_id = ?',
-    [name, limit, closingDay, dueDay, cardId, familyId, userId]
+    'UPDATE credit_cards SET name = ?, card_number = ?, bank = ?, "limit" = ?, closing_day = ?, due_day = ? WHERE id = ? AND family_id = ? AND user_id = ?',
+    [name, cardNumber, bank, limit, closingDay, dueDay, cardId, familyId, userId]
   );
+  return result.changes > 0;
+}
+
+export async function removeCardTransaction(cardId, transactionId, familyId, userId) {
+  const card = await get(
+    'SELECT id FROM credit_cards WHERE id = ? AND family_id = ? AND user_id = ?',
+    [cardId, familyId, userId]
+  );
+
+  if (!card) {
+    throw new Error('Card not found');
+  }
+
+  const result = await run(
+    'DELETE FROM card_transactions WHERE id = ? AND credit_card_id = ?',
+    [transactionId, cardId]
+  );
+
   return result.changes > 0;
 }
 
