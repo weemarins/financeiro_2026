@@ -507,7 +507,7 @@ export function CreditCardsPage() {
   );
   const displayedBill = selectedCardDetails ? filteredBillTotal : 0;
   const displayedAvailableLimit = selectedCardDetails
-    ? Number(selectedCardDetails.limit || 0) - displayedBill
+    ? Number(selectedCardDetails.availableLimit ?? selectedCardDetails.limit ?? 0)
     : 0;
 
   const clearMessages = () => {
