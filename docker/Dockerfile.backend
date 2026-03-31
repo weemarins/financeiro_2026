@@ -1,35 +1,25 @@
-# Backend Dockerfile (multi-stage)
-FROM node:18-alpine AS deps
+# Backend Dockerfile
+FROM node:18-alpine
 
 WORKDIR /app/backend
 
 # Copiar arquivos de dependência
 COPY backend/package*.json ./
 
-# Instalar apenas dependências de produção
-RUN npm install --omit=dev && npm cache clean --force
+# Instalar dependências
+RUN npm install --production
 
-FROM node:18-alpine AS runtime
+# Instalar curl para healthcheck
+RUN apk add --no-cache curl
 
-WORKDIR /app/backend
-
-ENV NODE_ENV=production
-
-# Instalar apenas utilitário necessário para healthcheck
-RUN apk add --no-cache curl su-exec
-
-# Copiar dependências instaladas e código da aplicação
-COPY --from=deps /app/backend/node_modules ./node_modules
+# Copiar código
 COPY backend ./
 
-# Criar usuário não-root e diretório de dados
-RUN addgroup -S nodeapp \
-    && adduser -S nodeapp -G nodeapp \
-    && mkdir -p /app/data \
-    && chown -R nodeapp:nodeapp /app
+# Criar diretório de dados
+RUN mkdir -p /app/data
 
 # Expor porta
 EXPOSE 5000
 
 # Iniciar servidor com banco de dados
-CMD ["sh", "-c", "chown -R nodeapp:nodeapp /app/data && su-exec nodeapp sh -c 'npm run db:init && npm run db:seed && npm run db:create-admin && npm start'"]
+CMD ["sh", "-c", "npm run db:init && npm run db:seed && npm run db:create-admin && npm start"]
