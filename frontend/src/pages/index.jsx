@@ -1414,15 +1414,6 @@ export function InvestmentsPage() {
               >
                 {saving ? 'Salvando...' : 'Cadastrar investimento'}
               </button>
-              {editingCardId && (
-                <button
-                  type="button"
-                  onClick={handleCancelEditCard}
-                  className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-                >
-                  Cancelar edição
-                </button>
-              )}
             </form>
           </div>
         </div>
@@ -1574,15 +1565,6 @@ export function InvestmentsPage() {
               >
                 Adicionar aporte
               </button>
-              {editingCardId && (
-                <button
-                  type="button"
-                  onClick={handleCancelEditCard}
-                  className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-                >
-                  Cancelar edição
-                </button>
-              )}
             </form>
 
             <div>
@@ -1981,15 +1963,6 @@ export function GoalsPage() {
               >
                 {saving ? 'Salvando...' : 'Criar meta'}
               </button>
-              {editingCardId && (
-                <button
-                  type="button"
-                  onClick={handleCancelEditCard}
-                  className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-                >
-                  Cancelar edição
-                </button>
-              )}
             </form>
           </div>
 
@@ -2137,15 +2110,6 @@ export function GoalsPage() {
               >
                 Criar reserva
               </button>
-              {editingCardId && (
-                <button
-                  type="button"
-                  onClick={handleCancelEditCard}
-                  className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-                >
-                  Cancelar edição
-                </button>
-              )}
             </form>
           ) : (
             <>
